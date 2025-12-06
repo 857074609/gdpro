@@ -162,18 +162,25 @@ jobs:
         with:
           name: bridge-artifact
           path: ./
-      - name: Replace 
+      - name: Replace custom patch files (cn.rs and desktop_home_page.dart)
         shell: bash
         run: |
           mkdir -p src/lang
           mkdir -p flutter/lib/pages
-          if [ -f .github/patches/cn.rs ]; then
+
+          if [ -f ".github/patches/cn.rs" ]; then
             cp .github/patches/cn.rs src/lang/cn.rs
-          fi
-          if [ -f .github/patches/desktop_home_page.dart ]; then
-            cp .github/patches/desktop_home_page.dart flutter/lib/pages/desktop_home_page.dart
+            echo "✅ Replaced src/lang/cn.rs"
+          else
+            echo "⚠️  .github/patches/cn.rs not found, skipping"
           fi
 
+          if [ -f ".github/patches/desktop_home_page.dart" ]; then
+            cp .github/patches/desktop_home_page.dart flutter/lib/pages/desktop_home_page.dart
+            echo "✅ Replaced flutter/lib/pages/desktop_home_page.dart"
+          else
+            echo "⚠️  .github/patches/desktop_home_page.dart not found, skipping"
+          fi
       - name: Install ImageMagick on Windows
         run: |
           choco install -y imagemagick.app --no-progress
