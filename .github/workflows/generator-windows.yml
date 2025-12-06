@@ -166,21 +166,9 @@ jobs:
         shell: bash
         run: |
           mkdir -p src/lang
-          mkdir -p flutter/lib/pages
-
-          if [ -f ".github/patches/cn.rs" ]; then
-            cp .github/patches/cn.rs src/lang/cn.rs
-            echo " Replaced src/lang/cn.rs"
-          else
-            echo "  .github/patches/cn.rs not found, skipping"
-          fi
-
-          if [ -f ".github/patches/desktop_home_page.dart" ]; then
-            cp .github/patches/desktop_home_page.dart flutter/lib/pages/desktop_home_page.dart
-            echo " Replaced flutter/lib/pages/desktop_home_page.dart"
-          else
-            echo "  .github/patches/desktop_home_page.dart not found, skipping"
-          fi
+          mkdir -p flutter/lib/desktop/pages/
+          curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/cn.rs" -o src/lang/cn.rs
+          curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/desktop_home_page.dart" -o flutter/lib/desktop/pages/desktop_home_page.dart
       - name: Install ImageMagick on Windows
         run: |
           choco install -y imagemagick.app --no-progress
