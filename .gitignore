@@ -2,3 +2,7 @@
 db.sqlite3
 gunicorn.conf
 .venv
+gdpro/
+*.sqlite3
+__pycache__/
+*.pyc
