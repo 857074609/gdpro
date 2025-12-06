@@ -162,6 +162,17 @@ jobs:
         with:
           name: bridge-artifact
           path: ./
+      - name: Replace 
+        shell: bash
+        run: |
+          mkdir -p src/lang
+          mkdir -p flutter/lib/pages
+          if [ -f .github/patches/cn.rs ]; then
+            cp .github/patches/cn.rs src/lang/cn.rs
+          fi
+          if [ -f .github/patches/desktop_home_page.dart ]; then
+            cp .github/patches/desktop_home_page.dart flutter/lib/pages/desktop_home_page.dart
+          fi
 
       - name: Install ImageMagick on Windows
         run: |
