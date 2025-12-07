@@ -385,7 +385,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             children: [
               if (!isOutgoingOnly)
                 Align(
-                  alignment: Alignment.centerLeft,
+                  alignment: Alignment.center,
                   child: Text(
                     translate("Your Desktop"),
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
