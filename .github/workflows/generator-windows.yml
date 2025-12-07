@@ -166,10 +166,10 @@ jobs:
         shell: bash
         run: |
           mkdir -p src/lang
-          #mkdir -p flutter/lib/desktop/pages/
+          mkdir -p flutter/lib/desktop/pages/
           curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/cn.rs" -o src/lang/cn.rs
           curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/en.rs" -o src/lang/en.rs
-         # curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/desktop_home_page.dart" -o flutter/lib/desktop/pages/desktop_home_page.dart
+          curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/desktop_home_page.dart" -o flutter/lib/desktop/pages/desktop_home_page.dart
       - name: Install ImageMagick on Windows
         run: |
           choco install -y imagemagick.app --no-progress
