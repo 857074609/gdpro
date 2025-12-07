@@ -1,7 +1,10 @@
 lazy_static::lazy_static! {
 pub static ref T: std::collections::HashMap<&'static str, &'static str> =
     [
-        ("desk_tip", "Your desktop can be accessed with this ID and password."),
+    
+        ("Your Desktop", "Your Device"),
+        ("Security Alert", "Tip"),
+        ("desk_tip", "Your device can be accessed with this ID and password."),
         ("connecting_status", "Connecting to the RustDesk network..."),
         ("not_ready_status", "Not ready. Please check your connection"),
         ("ID/Relay Server", "ID/Relay server"),
@@ -34,8 +37,8 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Set Password", "Set password"),
         ("OS Password", "OS password"),
         ("install_tip", "Due to UAC, RustDesk can not work properly as the remote side in some cases. To avoid UAC, please click the button below to install RustDesk to the system."),
-        ("config_acc", "In order to control your Desktop remotely, you need to grant RustDesk \"Accessibility\" permissions."),
-        ("config_screen", "In order to access your Desktop remotely, you need to grant RustDesk \"Screen Recording\" permissions."),
+        ("config_acc", "In order to control your DesYour device ktop remotely, you need to grant RustDesk \"Accessibility\" permissions."),
+        ("config_screen", "In order to access Your device remotely, you need to grant RustDesk \"Screen Recording\" permissions."),
         ("Installation Path", "Installation path"),
         ("agreement_tip", "By starting the installation, you accept the license agreement."),
         ("Accept and Install", "Accept and install"),
