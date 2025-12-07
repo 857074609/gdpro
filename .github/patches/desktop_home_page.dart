@@ -89,9 +89,10 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       //移除部分是被控端的UI Powered，就是xxx支持部分
       if (!isOutgoingOnly)... [
           buildTip(context),
+        const SizedBox(height: 30), //增加板块的间距
           buildIDBoard(context),
           buildPasswordBoard(context),
-          const SizedBox(height: 25), //增加板块的间距
+          const SizedBox(height: 30), //增加板块的间距
           buildPresetPasswordWarning(),
          ],
       FutureBuilder<Widget>(
@@ -194,21 +195,21 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       margin: const EdgeInsets.only(left: 20, right: 11),
       height: 57,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        children: [
+       // crossAxisAlignment: CrossAxisAlignment.baseline,
+      //  textBaseline: TextBaseline.alphabetic,
+
 //原内容是ID彩色竖条
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.only(left: 7),
+             // padding: const EdgeInsets.only(left: 7),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    height: 25,
-                    
-//原来位置ID和三点菜单已被删除
-                  ),
+                 mainAxisAlignment: MainAxisAlignment.center, // 垂直居中（可选）
+                 crossAxisAlignment: CrossAxisAlignment.center, // 水平居中
+                children: [ 
+                  Container(  
+       //               height: 25
+                       ),
+  //原来位置ID和三点菜单已被删除
                   Flexible(
                     child: GestureDetector(
                       onDoubleTap: () {
