@@ -79,12 +79,20 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   Widget buildLeftPane(BuildContext context) {
     final isIncomingOnly = true;
     final isOutgoingOnly = bind.isOutgoingOnly();
+  //final children = <Widget> 表示的是UI中不同Widget放置的位置
     final children = <Widget>[
-      if (!isOutgoingOnly) buildPresetPasswordWarning(),
-//移除部分是被控端的UI logo和Powered 
-      buildTip(context),
-      if (!isOutgoingOnly) buildIDBoard(context),
-      if (!isOutgoingOnly) buildPasswordBoard(context),
+      if (bind.isCustomClient())
+         Align(
+         alignment: Alignment.center,
+         child: loadLogo(),
+           ),
+      //移除部分是被控端的UI Powered，就是xxx支持部分
+      if (!isOutgoingOnly)... [
+          buildTip(context),
+          buildIDBoard(context),
+          buildPasswordBoard(context),
+          buildPresetPasswordWarning(),
+         ],
       FutureBuilder<Widget>(
         future: Future.value(
             Obx(() => buildHelpCards(stateGlobal.updateUrl.value))),
