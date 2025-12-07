@@ -581,7 +581,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Please select the session you want to connect to", "请选择您要连接的会话"),
         ("powered_by_me", "由 RustDesk 提供支持"),
         ("outgoing_only_desk_tip", "当前版本的软件是定制版本。\n您可以连接至其他设备，但是其他设备无法连接至您的设备。"),
-        ("preset_password_warning", "请在ID的位置双击鼠标即可复制ID信息，然后将ID信息粘贴发送给客服即可"),
+        ("preset_password_warning", "请在ID的位置双击鼠标即可复制ID信息，然后将ID信息粘贴发给客服即可"),
 
         ("Security Alert", "温馨提示"),
         ("My address book", "我的地址簿"),
