@@ -189,56 +189,48 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     );
   }
 
-  buildIDBoard(BuildContext context) {
-    final model = gFFI.serverModel;
-    return Container(
-      margin: const EdgeInsets.only(left: 20, right: 11),
-      height: 57,
-      child: Row(
-       // crossAxisAlignment: CrossAxisAlignment.baseline,
-      //  textBaseline: TextBaseline.alphabetic,
-
-//原内容是ID彩色竖条
-          Expanded(
-            child: Padding(
-             // padding: const EdgeInsets.only(left: 7),
-              child: Column(
-                 mainAxisAlignment: MainAxisAlignment.center, // 垂直居中（可选）
-                 crossAxisAlignment: CrossAxisAlignment.center, // 水平居中
-                children: [ 
-                  Container(  
-       //               height: 25
-                       ),
-  //原来位置ID和三点菜单已被删除
-                  Flexible(
-                    child: GestureDetector(
-                      onDoubleTap: () {
-                        Clipboard.setData(
-                            ClipboardData(text: model.serverId.text));
-                        showToast(translate("Copied"));
-                      },
-                      child: TextFormField(
-                        controller: model.serverId,
-                        readOnly: true,
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.only(top: 8, bottom: 8),
-                        ),
-                        style: TextStyle(
-                          fontSize: 28,//ID字体大小
-                          fontWeight: FontWeight.w500, // 可选：加粗更醒目
-                        ),
-                      ).workaroundFreezeLinuxMint(),
+buildIDBoard(BuildContext context) {
+  final model = gFFI.serverModel;
+  return Container(
+    margin: const EdgeInsets.only(left: 20, right: 11),
+    height: 57,
+    child: Row(
+      children: [
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center, //垂直居中
+            crossAxisAlignment: CrossAxisAlignment.center, //水平居中
+            children: [
+              // 原内容是ID彩色竖条
+              // 原来ID标题和三点菜单已被删除
+              Flexible(
+                child: GestureDetector(
+                  onDoubleTap: () {
+                    Clipboard.setData(ClipboardData(text: model.serverId.text));
+                    showToast(translate("Copied"));
+                  },
+                  child: TextFormField(
+                    controller: model.serverId,
+                    readOnly: true,
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
                     ),
-                  )
-                ],
+                    style: const TextStyle(
+                      fontSize:30,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ).workaroundFreezeLinuxMint(),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 //以下是设置菜单参数
   Widget buildPopupMenu(BuildContext context) {
     final textColor = Theme.of(context).textTheme.titleLarge?.color;
