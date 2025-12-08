@@ -350,20 +350,20 @@ buildIDBoard(BuildContext context) {
 //      ),
 //    );
   }
-//微信收款部分
-  Widget buildWeChatSupportBoard(BuildContext context) {
-  return Container(
-    width: 280, // 固定宽度
-    decoration: BoxDecoration(
-      border: Border.all(color: Colors.grey.shade300),
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Image.asset(
-      'assets/wx.png',
-      fit: BoxFit.contain, // 保持宽高比，完整显示图片
-    ),
-  );
-}
+//额外添加图片部分
+ // Widget buildWeChatSupportBoard(BuildContext context) {
+ // return Container(
+ //   width: 280, // 固定宽度
+//    decoration: BoxDecoration(
+ //     border: Border.all(color: Colors.grey.shade300),
+//      borderRadius: BorderRadius.circular(8),
+//    ),
+ //   child: Image.asset(
+//      'assets/vx.png',
+//      fit: BoxFit.contain, // 保持宽高比，完整显示图片
+//    ),
+//  );
+// }
 //以下是主标题和副标题内容
   buildTip(BuildContext context) {
     final isOutgoingOnly = bind.isOutgoingOnly();
