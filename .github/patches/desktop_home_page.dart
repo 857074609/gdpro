@@ -87,16 +87,16 @@ class _DesktopHomePageState extends State<DesktopHomePage>
          alignment: Alignment.center,
          child: loadLogo(),
            ),
-        Obx(() => buildHelpCards(stateGlobal.updateUrl.value)), //加入调用卡片的位置
+        Obx(() => buildHelpCards(stateGlobal.updateUrl.value)), //加入帮助卡片的位置
       //移除部分是被控端的UI Powered，就是xxx支持部分
       if (!isOutgoingOnly)... [
           buildTip(context),
-          const SizedBox(height: 20), //增加板块的间距
+          const SizedBox(height: 45), //增加板块的间距
           buildIDBoard(context),
           buildPasswordBoard(context),
-          const SizedBox(height: 10), //增加板块的间距
+          const SizedBox(height: 45), //增加板块的间距
           buildPresetPasswordWarning(),
-          buildWeChatSupportBoard(context),//微信支付
+      //  buildWeChatSupportBoard(context),//微信支付
          ],
 //原来帮助卡片FutureBuilder，已经删除
       buildPluginEntry(),
@@ -243,23 +243,23 @@ buildIDBoard(BuildContext context) {
     );
   }
 //以下是密码框参数
-  buildPasswordBoard(BuildContext context) {
+// buildPasswordBoard(BuildContext context) {
 //    return ChangeNotifierProvider.value(
 //        value: gFFI.serverModel,
 //        child: Consumer<ServerModel>(
 //          builder: (context, model, child) {
-            return Container(); //移除密码框return buildPasswordBoard2(context, model);
+//           return Container(); //移除密码框return buildPasswordBoard2(context, model);
 //          },
 //        ));
-  }
+ /  }
 
-  buildPasswordBoard2(BuildContext context, ServerModel model) {
+//  buildPasswordBoard2(BuildContext context, ServerModel model) {
 //    RxBool refreshHover = false.obs;
 //    RxBool editHover = false.obs;
 //    final textColor = Theme.of(context).textTheme.titleLarge?.color;
 //    final showOneTime = model.approveMode != 'click' &&
 //        model.verificationMethod != kUsePermanentPassword;
-    return Container();  //return Container(从这里到388行是一个闭合.
+//    return Container();  //return Container(从这里到388行是一个闭合.
 //      margin: EdgeInsets.only(left: 20.0, right: 16, top: 13, bottom: 13),
 //      child: Row(
 //        crossAxisAlignment: CrossAxisAlignment.baseline,
