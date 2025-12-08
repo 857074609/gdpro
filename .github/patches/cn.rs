@@ -145,7 +145,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Failed to make direct connection to remote desktop", "无法直接连接到远程设备"),
         ("Set Password", "设置密码"),
         ("OS Password", "操作系统密码"),
-        ("install_tip", "正在运行未安装版本，由于 UAC 限制，请退出杀毒软件后点击安装"),
+        ("install_tip", "正在运行未安装版本，由于您系统限制，需要先退出杀毒软件后点击安装使用"),
         ("Click to upgrade", "点击这里升级"),
         ("Configure", "配置"),
         ("config_acc", "为了能够远程控制你的设备, 请给予 LnDesk \"辅助功能\" 权限。"),
@@ -581,7 +581,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Please select the session you want to connect to", "请选择您要连接的会话"),
         ("powered_by_me", "由 LnDesk 提供支持"),
         ("outgoing_only_desk_tip", ""),
-        ("preset_password_warning", "请在ID的位置双击鼠标即可复制ID信息，然后将ID信息粘贴发给客服即可"),
+        ("preset_password_warning", "请在ID的位置双击鼠标即可复制ID信息 然后将ID信息粘贴发给客服即可"),
 
         ("Security Alert", "温馨提示"),
         ("My address book", "我的地址簿"),
