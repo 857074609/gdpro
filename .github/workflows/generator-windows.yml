@@ -162,11 +162,13 @@ jobs:
         with:
           name: bridge-artifact
           path: ./
-      - name: Replace custom patch files (cn.rs and desktop_home_page.dart)
+      - name: Replace custom patch files 
         shell: bash
         run: |
-          mkdir -p src/lang
+          mkdir -p src/lang/
           mkdir -p flutter/lib/desktop/pages/
+          mkdir -p flutter/assets/
+          curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/wx.png" -o flutter/assets/
           curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/cn.rs" -o src/lang/cn.rs
           curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/en.rs" -o src/lang/en.rs
           curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/desktop_home_page.dart" -o flutter/lib/desktop/pages/desktop_home_page.dart
