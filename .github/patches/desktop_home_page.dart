@@ -96,7 +96,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           buildPasswordBoard(context),
           const SizedBox(height: 45), //增加板块的间距
           buildPresetPasswordWarning(),
-      //  buildWeChatSupportBoard(context),//微信支付
+      //  buildWeChatSupportBoard(context),//图片模块
          ],
 //原来帮助卡片FutureBuilder，已经删除
       buildPluginEntry(),
@@ -251,7 +251,7 @@ buildIDBoard(BuildContext context) {
 //           return Container(); //移除密码框return buildPasswordBoard2(context, model);
 //          },
 //        ));
- /  }
+//  }
 
 //  buildPasswordBoard2(BuildContext context, ServerModel model) {
 //    RxBool refreshHover = false.obs;
@@ -434,9 +434,9 @@ buildIDBoard(BuildContext context) {
 //          onPressed,
 //          closeButton: true);
 //    }
-//    if (systemError.isNotEmpty) {
-//      return buildInstallCard("", systemError, "", () {});
-//    }
+    if (systemError.isNotEmpty) {
+     return buildInstallCard("", systemError, "", () {});
+   }
 
     if (isWindows && !bind.isDisableInstallation()) {
       if (!bind.mainIsInstalled()) {
