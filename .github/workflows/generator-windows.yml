@@ -573,19 +573,61 @@ jobs:
         run: |
           Compress-Archive -Path ./rustdesk/*.dll, ./rustdesk/*.exe -DestinationPath ./rustdesk/unsigned_files.zip -CompressionLevel Fastest
 
-      - name: sign dlls
-        continue-on-error: true
-        shell: bash
-        run: |
-          if [ ! -z "${{ secrets.SIGN_BASE_URL }}" ] && [ ! -z "${{ secrets.SIGN_API_KEY }}" ]; then
-            curl -X POST -F "file=@./rustdesk/unsigned_files.zip" \
-              -H "X-API-KEY: ${{ secrets.SIGN_API_KEY }}" \
-              -m 900 \
-              "${{ secrets.SIGN_BASE_URL }}/sign/" -o ./rustdesk/signed_files.zip
-          else
-            echo "Signing skipped - signing URL or API key not configured"
-            cp ./rustdesk/unsigned_files.zip ./rustdesk/signed_files.zip
-          fi
+ name: Sign DLLs/EXEs (local or remote)
+  if: env.UPLOAD_ARTIFACT == 'true'
+  continue-on-error: false
+  shell: pwsh
+  env:
+    WIN_CERT_PFX: ${{ secrets.WIN_CERT_PFX }}
+    WIN_CERT_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
+    SIGN_BASE_URL: ${{ secrets.SIGN_BASE_URL }}
+    SIGN_API_KEY: ${{ secrets.SIGN_API_KEY }}
+  run: |
+    $unsigned = "./rustdesk/unsigned_files.zip"
+    $signed = "./rustdesk/signed_files.zip"
+
+    # 情况1：有本地证书 → 用 signtool
+    if (-not [string]::IsNullOrWhiteSpace($env:WIN_CERT_PFX) -and -not [string]::IsNullOrWhiteSpace($env:WIN_CERT_PASSWORD)) {
+      Write-Host "Using local signtool with PFX certificate..."
+
+      $pfxPath = "$pwd\cert.pfx"
+      [System.Convert]::FromBase64String($env:WIN_CERT_PFX) | Set-Content -Path $pfxPath -AsByteStream
+
+      Expand-Archive -Path $unsigned -DestinationPath ./rustdesk/to_sign -Force
+
+      Get-ChildItem -Path ./rustdesk/to_sign -Include *.exe, *.dll -Recurse | ForEach-Object {
+        Write-Host "Signing $($_.FullName)"
+        & signtool sign /fd SHA256 /f $pfxPath /p $env:WIN_CERT_PASSWORD /tr http://timestamp.digicert.com /td SHA256 $_.FullName
+        if ($LASTEXITCODE -ne 0) { throw "signtool failed on $($_.Name)" }
+      }
+
+      Compress-Archive -Path ./rustdesk/to_sign/* -DestinationPath $signed -CompressionLevel Fastest
+      return
+    }
+
+    # 情况2：有外部签名服务 → 调用 API
+    if (-not [string]::IsNullOrWhiteSpace($env:SIGN_BASE_URL) -and -not [string]::IsNullOrWhiteSpace($env:SIGN_API_KEY)) {
+      Write-Host "Falling back to remote signing service..."
+      $tmpFile = "$pwd\temp_unsigned.zip"
+      Copy-Item $unsigned $tmpFile
+      $result = curl.exe -s -S -X POST "$env:SIGN_BASE_URL/sign" `
+        -H "X-API-Key: $env:SIGN_API_KEY" `
+        -H "Content-Type: multipart/form-data" `
+        -F "file=@$tmpFile;filename=unsigned_files.zip" `
+        --output "$pwd\signed_output.zip" `
+        --write-out "%{http_code}"
+
+      if ($result -ne "200") {
+        Write-Error "Remote signing failed with HTTP code: $result"
+        exit 1
+      }
+      Move-Item "$pwd\signed_output.zip" $signed -Force
+      return
+    }
+
+    # 情况3：无任何签名方式 → 跳过
+    Write-Host "No signing method available. Skipping signature."
+    Copy-Item $unsigned $signed
 
       - name: unzip dlls
         continue-on-error: true
@@ -645,19 +687,66 @@ jobs:
         run: |
           Compress-Archive -Path ./SignOutput/*.exe, ./SignOutput/*.msi -DestinationPath ./SignOutput/unsigned_files.zip -CompressionLevel Fastest
 
-      - name: sign exe and msi
-        continue-on-error: true
-        shell: bash
-        run: |
-          if [ ! -z "${{ secrets.SIGN_BASE_URL }}" ] && [ ! -z "${{ secrets.SIGN_API_KEY }}" ]; then
-            curl -X POST -F "file=@./SignOutput/unsigned_files.zip" \
-              -H "X-API-KEY: ${{ secrets.SIGN_API_KEY }}" \
-              -m 900 \
-              "${{ secrets.SIGN_BASE_URL }}/sign/" -o ./SignOutput/signed_files.zip
-          else
-            echo "Signing skipped - signing URL or API key not configured"
-            cp ./SignOutput/unsigned_files.zip ./SignOutput/signed_files.zip
-          fi
+- name: Sign final EXE and MSI (local or remote)
+  if: env.UPLOAD_ARTIFACT == 'true'
+  continue-on-error: false
+  shell: pwsh
+  env:
+    WIN_CERT_PFX: ${{ secrets.WIN_CERT_PFX }}
+    WIN_CERT_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
+    SIGN_BASE_URL: ${{ secrets.SIGN_BASE_URL }}
+    SIGN_API_KEY: ${{ secrets.SIGN_API_KEY }}
+    APPNAME: ${{ inputs.appname }}
+  run: |
+    $unsigned = "./SignOutput/unsigned_files.zip"
+    $signed = "./SignOutput/signed_files.zip"
+
+    # 情况1：本地 PFX
+    if (-not [string]::IsNullOrWhiteSpace($env:WIN_CERT_PFX) -and -not [string]::IsNullOrWhiteSpace($env:WIN_CERT_PASSWORD)) {
+      Write-Host "Using local signtool for final installer..."
+
+      $pfxPath = "$pwd\cert.pfx"
+      [System.Convert]::FromBase64String($env:WIN_CERT_PFX) | Set-Content -Path $pfxPath -AsByteStream
+
+      Expand-Archive -Path $unsigned -DestinationPath ./SignOutput/to_sign -Force
+
+      Get-ChildItem -Path ./SignOutput/to_sign -Include *.exe, *.msi -Recurse | ForEach-Object {
+        Write-Host "Signing final file: $($_.Name)"
+        if ($_.Extension -eq ".msi") {
+          & signtool sign /fd SHA256 /f $pfxPath /p $env:WIN_CERT_PASSWORD /tr http://timestamp.digicert.com /td SHA256 /d $env:APPNAME $_.FullName
+        } else {
+          & signtool sign /fd SHA256 /f $pfxPath /p $env:WIN_CERT_PASSWORD /tr http://timestamp.digicert.com /td SHA256 $_.FullName
+        }
+        if ($LASTEXITCODE -ne 0) { throw "signtool failed on final file $($_.Name)" }
+      }
+
+      Compress-Archive -Path ./SignOutput/to_sign/* -DestinationPath $signed -CompressionLevel Fastest
+      return
+    }
+
+    # 情况2：远程 API
+    if (-not [string]::IsNullOrWhiteSpace($env:SIGN_BASE_URL) -and -not [string]::IsNullOrWhiteSpace($env:SIGN_API_KEY)) {
+      Write-Host "Falling back to remote signing for final installer..."
+      $tmpFile = "$pwd\temp_unsigned_final.zip"
+      Copy-Item $unsigned $tmpFile
+      $result = curl.exe -s -S -X POST "$env:SIGN_BASE_URL/sign" `
+        -H "X-API-Key: $env:SIGN_API_KEY" `
+        -H "Content-Type: multipart/form-data" `
+        -F "file=@$tmpFile;filename=unsigned_files.zip" `
+        --output "$pwd\signed_output_final.zip" `
+        --write-out "%{http_code}"
+
+      if ($result -ne "200") {
+        Write-Error "Remote signing failed for final installer (HTTP $result)"
+        exit 1
+      }
+      Move-Item "$pwd\signed_output_final.zip" $signed -Force
+      return
+    }
+
+    # 情况3：跳过
+    Write-Host "No signing method for final installer. Skipping."
+    Copy-Item $unsigned $signed
 
       - name: unzip exe and msi
         continue-on-error: true
