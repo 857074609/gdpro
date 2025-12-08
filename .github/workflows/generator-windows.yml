@@ -573,62 +573,7 @@ jobs:
         run: |
           Compress-Archive -Path ./rustdesk/*.dll, ./rustdesk/*.exe -DestinationPath ./rustdesk/unsigned_files.zip -CompressionLevel Fastest
 
- name: Sign DLLs/EXEs (local or remote)
-  if: env.UPLOAD_ARTIFACT == 'true'
-  continue-on-error: false
-  shell: pwsh
-  env:
-    WIN_CERT_PFX: ${{ secrets.WIN_CERT_PFX }}
-    WIN_CERT_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
-    SIGN_BASE_URL: ${{ secrets.SIGN_BASE_URL }}
-    SIGN_API_KEY: ${{ secrets.SIGN_API_KEY }}
-  run: |
-    $unsigned = "./rustdesk/unsigned_files.zip"
-    $signed = "./rustdesk/signed_files.zip"
-
-    # 情况1：有本地证书 → 用 signtool
-    if (-not [string]::IsNullOrWhiteSpace($env:WIN_CERT_PFX) -and -not [string]::IsNullOrWhiteSpace($env:WIN_CERT_PASSWORD)) {
-      Write-Host "Using local signtool with PFX certificate..."
-
-      $pfxPath = "$pwd\cert.pfx"
-      [System.Convert]::FromBase64String($env:WIN_CERT_PFX) | Set-Content -Path $pfxPath -AsByteStream
-
-      Expand-Archive -Path $unsigned -DestinationPath ./rustdesk/to_sign -Force
-
-      Get-ChildItem -Path ./rustdesk/to_sign -Include *.exe, *.dll -Recurse | ForEach-Object {
-        Write-Host "Signing $($_.FullName)"
-        & signtool sign /fd SHA256 /f $pfxPath /p $env:WIN_CERT_PASSWORD /tr http://timestamp.digicert.com /td SHA256 $_.FullName
-        if ($LASTEXITCODE -ne 0) { throw "signtool failed on $($_.Name)" }
-      }
-
-      Compress-Archive -Path ./rustdesk/to_sign/* -DestinationPath $signed -CompressionLevel Fastest
-      return
-    }
-
-    # 情况2：有外部签名服务 → 调用 API
-    if (-not [string]::IsNullOrWhiteSpace($env:SIGN_BASE_URL) -and -not [string]::IsNullOrWhiteSpace($env:SIGN_API_KEY)) {
-      Write-Host "Falling back to remote signing service..."
-      $tmpFile = "$pwd\temp_unsigned.zip"
-      Copy-Item $unsigned $tmpFile
-      $result = curl.exe -s -S -X POST "$env:SIGN_BASE_URL/sign" `
-        -H "X-API-Key: $env:SIGN_API_KEY" `
-        -H "Content-Type: multipart/form-data" `
-        -F "file=@$tmpFile;filename=unsigned_files.zip" `
-        --output "$pwd\signed_output.zip" `
-        --write-out "%{http_code}"
-
-      if ($result -ne "200") {
-        Write-Error "Remote signing failed with HTTP code: $result"
-        exit 1
-      }
-      Move-Item "$pwd\signed_output.zip" $signed -Force
-      return
-    }
-
-    # 情况3：无任何签名方式 → 跳过
-    Write-Host "No signing method available. Skipping signature."
-    Copy-Item $unsigned $signed
-
+ 
       - name: unzip dlls
         continue-on-error: true
         shell: pwsh
@@ -658,106 +603,134 @@ jobs:
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
 
-      - name: Build msi
-        continue-on-error: true
-        if: env.UPLOAD_ARTIFACT == 'true'
-        run: |
-          $myappname = "${{ inputs.appname }}" -replace '\s','_'
-          cp "rustdesk/${{ inputs.appname }}.exe" "rustdesk/${myappname}.exe" -ErrorAction SilentlyContinue
-          pushd ./res/msi
-          python preprocess.py --app-name "$myappname" --arp -d ../../rustdesk
-          nuget restore msi.sln
-          msbuild msi.sln -p:Configuration=Release -p:Platform=x64 /p:TargetVersion=Windows10
-          cp ./Package/bin/x64/Release/en-us/Package.msi ../../SignOutput/rustdesk-latest.msi
-          mv ./Package/bin/x64/Release/en-us/Package.msi ../../SignOutput/rustdesk.msi
-          sha256sum ../../SignOutput/rustdesk.msi
-
-      - name: Report Status
-        uses: fjogeleit/http-request-action@v1
-        continue-on-error: true
-        with:
+	      - 名称: 构建 MSI
+	        continue-on-error: true
+	        if: env.UPLOAD_ARTIFACT == 'true'
+	        run: |
+	          $myappname = "${{ inputs.appname }}" -replace '\s','_'
+	          cp "rustdesk/${{ inputs.appname }}.exe" "rustdesk/${myappname}.exe" -ErrorAction SilentlyContinue
+	          pushd ./res/msi
+	          python preprocess.py --app-name "$myappname" --arp -d ../../rustdesk
+	          nuget restore msi.sln
+	          msbuild msi.sln -p:Configuration=Release -p:Platform=x64 /p:TargetVersion=Windows10
+	          cp ./Package/bin/x64/Release/en-us/Package.msi ../../SignOutput/rustdesk-latest.msi
+	          mv ./Package/bin/x64/Release/en-us/Package.msi ../../SignOutput/rustdesk.msi
+	          sha256sum ../../SignOutput/rustdesk.msi
+	    - 名称: 导入代码签名证书（从 Base64 导出的 PFX）
+	        if: env.UPLOAD_ARTIFACT == 'true' && secrets.WIN_CERT_BASE64 != ''
+	        shell: pwsh
+	        run: |
+	          Write-Host "正在导入代码签名证书..."
+	          $certBase64 = "secrets.WIN_CERT_BASE64"
+	          $bytes = [System.Convert]::FromBase64String($certBase64)
+	          [System.IO.File]::WriteAllBytes("$PWD\signing_cert.pfx", $bytes)
+	          Write-Host "Certificate saved as signing_cert.pfx"
+	
+	      - 名称: 使用 Signtool 签署 RustDesk EXE
+	        if: env.UPLOAD_ARTIFACT == 'true' && secrets.WIN_CERT_BASE64 != ''
+	        shell：pwsh
+	        运行: |
+	          $certPath = ">$PWD\signing_cert.pfx"
+	          $exePath = "$PWD\SignOutput\rustdesk.exe"
+	          $password = "${{ secrets.WIN_CERT_PASSWORD }}"
+	          
+	          if (!(Test-Path $exePath)) {
+	            Write-Host "EXE not found, skipping signing."
+	            exit 0
+	          }
+	
+	          $timestampUrl = "http://timestamp.digicert.com"
+	          # $timestampUrl = "http://rfc3161timestamp.globalsign.com/advanced"  # 可选其他时间戳服务器
+	
+	          $args = @(
+	            "sign",
+	            "/fd", "SHA256",
+	            "/f", $certPath,
+	            "/tr", $timestampUrl,
+	            "/td", "SHA256"
+	          )
+	
+	          if (![string]::IsNullOrEmpty($password)) {
+	            $args += "/p"
+	            $args += $password
+	          }
+	
+	          $args += $exePath
+	
+	          Write-Host "Running: signtool $($args -join ' ')"
+	          & signtool $args
+	          if ($LASTEXITCODE -ne 0) {
+	            Write-Error "Failed to sign EXE"
+	            exit $LASTEXITCODE
+	          }
+	          Write-Host "✅ EXE signed successfully."
+	
+	      - name: Sign RustDesk MSI with Signtool
+	        if：env.UPLOAD_ARTIFACT == 'true' && secrets.WIN_CERT_BASE64 != ''
+	        shell：pwsh
+	        运行： |
+	          $certPath = ">$PWD\signing_cert.pfx"			
+	          $msiPath = "$PWD\SignOutput\rustdesk.msi"
+	          $password = "${{ secrets.WIN_CERT_PASSWORD }}"
+	          
+	          if (!(Test-Path $msiPath)) {
+	            Write-Host “MSI未找到，跳过签名。”
+	            退出 0
+	          }
+	
+	          $timestampUrl = "http://timestamp.digicert.com"
+	
+	          $arg = @(
+	            "签署"
+	            "/fd", "SHA256",
+	            "/f", $certPath,
+	            "/tr", $timestampUrl,
+	                        "/td", "SHA256",, "SHA256",
+	                        "/as"   # 为 MSI 添加签名   # Append signature for MSI
+	          )
+	
+	          if (!          if (![string]::IsNullOrEmpty($password)) {string]::IsNullOrEmpty($password)) {
+	            $args +=             $args += "/p"
+	            $args += $password
+	                    }
+	
+	          $args += $msiPath
+	
+	          Write-Host "Running: signtool $($args -join ' ')": signtool $($args -join ' ')"
+	          & signtool $args
+	          if ($LASTEXITCODE -ne 0)           if ($LASTEXITCODE -ne 0) {
+	            Write-Error             Write-Error "失败签名 MSI"
+	            exit $LASTEXITCODE
+	                    }
+	          Write-Host           Write-Host "✅ MSI 签署成功。"
+	
+	      - 名称: R电子报告状态
+	        使用：fjogeleit/http-request-action@v1
+	        继续执行错误：真
+        与：
           url: ${{ env.STATUS_URL }}
-          method: 'POST'
-          customHeaders: '{"Content-Type": "application/json"}'
-          data: '{"uuid": "${{ inputs.uuid }}", "status": "85% complete"}'
+          方法： 'POST'
+          自定义头: '{"Content-Type": "application/json"}'
+          数据：'{"uuid": "${{ inputs.uuid }}", "status": "完成85%"}'
 
-      - name: zip exe and msi
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          Compress-Archive -Path ./SignOutput/*.exe, ./SignOutput/*.msi -DestinationPath ./SignOutput/unsigned_files.zip -CompressionLevel Fastest
+      - 名称: zip、exe 和 msi
+        继续执行错误：真
+        shell：pwsh
+        运行： |
+          Compress-Archive -Path ./SignOutput/*.exe, ./SignOutput/*.msi -DestinationPath ./SignOutput/unsigned_files.zip -CompressionLevel 最快
 
-- name: Sign final EXE and MSI (local or remote)
-  if: env.UPLOAD_ARTIFACT == 'true'
-  continue-on-error: false
-  shell: pwsh
-  env:
-    WIN_CERT_PFX: ${{ secrets.WIN_CERT_PFX }}
-    WIN_CERT_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
-    SIGN_BASE_URL: ${{ secrets.SIGN_BASE_URL }}
-    SIGN_API_KEY: ${{ secrets.SIGN_API_KEY }}
-    APPNAME: ${{ inputs.appname }}
-  run: |
-    $unsigned = "./SignOutput/unsigned_files.zip"
-    $signed = "./SignOutput/signed_files.zip"
 
-    # 情况1：本地 PFX
-    if (-not [string]::IsNullOrWhiteSpace($env:WIN_CERT_PFX) -and -not [string]::IsNullOrWhiteSpace($env:WIN_CERT_PASSWORD)) {
-      Write-Host "Using local signtool for final installer..."
 
-      $pfxPath = "$pwd\cert.pfx"
-      [System.Convert]::FromBase64String($env:WIN_CERT_PFX) | Set-Content -Path $pfxPath -AsByteStream
-
-      Expand-Archive -Path $unsigned -DestinationPath ./SignOutput/to_sign -Force
-
-      Get-ChildItem -Path ./SignOutput/to_sign -Include *.exe, *.msi -Recurse | ForEach-Object {
-        Write-Host "Signing final file: $($_.Name)"
-        if ($_.Extension -eq ".msi") {
-          & signtool sign /fd SHA256 /f $pfxPath /p $env:WIN_CERT_PASSWORD /tr http://timestamp.digicert.com /td SHA256 /d $env:APPNAME $_.FullName
-        } else {
-          & signtool sign /fd SHA256 /f $pfxPath /p $env:WIN_CERT_PASSWORD /tr http://timestamp.digicert.com /td SHA256 $_.FullName
-        }
-        if ($LASTEXITCODE -ne 0) { throw "signtool failed on final file $($_.Name)" }
-      }
-
-      Compress-Archive -Path ./SignOutput/to_sign/* -DestinationPath $signed -CompressionLevel Fastest
-      return
-    }
-
-    # 情况2：远程 API
-    if (-not [string]::IsNullOrWhiteSpace($env:SIGN_BASE_URL) -and -not [string]::IsNullOrWhiteSpace($env:SIGN_API_KEY)) {
-      Write-Host "Falling back to remote signing for final installer..."
-      $tmpFile = "$pwd\temp_unsigned_final.zip"
-      Copy-Item $unsigned $tmpFile
-      $result = curl.exe -s -S -X POST "$env:SIGN_BASE_URL/sign" `
-        -H "X-API-Key: $env:SIGN_API_KEY" `
-        -H "Content-Type: multipart/form-data" `
-        -F "file=@$tmpFile;filename=unsigned_files.zip" `
-        --output "$pwd\signed_output_final.zip" `
-        --write-out "%{http_code}"
-
-      if ($result -ne "200") {
-        Write-Error "Remote signing failed for final installer (HTTP $result)"
-        exit 1
-      }
-      Move-Item "$pwd\signed_output_final.zip" $signed -Force
-      return
-    }
-
-    # 情况3：跳过
-    Write-Host "No signing method for final installer. Skipping."
-    Copy-Item $unsigned $signed
-
-      - name: unzip exe and msi
-        continue-on-error: true
-        shell: pwsh
-        run: |
+      - 名称: 解压exe和msi
+        继续执行错误：真
+        shell：pwsh
+        运行： |
           Expand-Archive -Path ./SignOutput/signed_files.zip -DestinationPath ./SignOutput/ -Force
-          Remove-Item ./SignOutput/unsigned_files.zip
-          Remove-Item ./SignOutput/signed_files.zip
+          移除./SignOutput/unsigned_files.zip
+          移除./SignOutput/signed_files.zip
 
-      - name: rename rustdesk.exe to filename.exe
-        run: |
+      - 名称: 将 rustdesk.exe 重命名为 filename.exe
+        运行： |
           mv ./SignOutput/rustdesk.exe "./SignOutput/${{ inputs.filename }}.exe" || echo "rustdesk"
 
       - name: rename rustdesk.msi to filename.msi
