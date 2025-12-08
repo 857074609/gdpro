@@ -89,11 +89,13 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       //移除部分是被控端的UI Powered，就是xxx支持部分
       if (!isOutgoingOnly)... [
           buildTip(context),
-          const SizedBox(height: 40), //增加板块的间距
+          const SizedBox(height: 25), //增加板块的间距
           buildIDBoard(context),
           buildPasswordBoard(context),
-          const SizedBox(height: 40), //增加板块的间距
+          const SizedBox(height: 25), //增加板块的间距
+          buildWeChatSupportBoard(BuildContext context),//微信支付
           buildPresetPasswordWarning(),
+        
           const SizedBox(height: 5), 
          ],
       FutureBuilder<Widget>(
@@ -365,6 +367,20 @@ buildIDBoard(BuildContext context) {
 //      ),
 //    );
   }
+//微信收款部分
+  Widget buildWeChatSupportBoard(BuildContext context) {
+  return Container(
+    width: 280, // 固定宽度
+    decoration: BoxDecoration(
+      border: Border.all(color: Colors.grey.shade300),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Image.asset(
+      'assets/wx.png',
+      fit: BoxFit.contain, // 保持宽高比，完整显示图片
+    ),
+  );
+}
 //以下是主标题和副标题内容
   buildTip(BuildContext context) {
     final isOutgoingOnly = bind.isOutgoingOnly();
