@@ -604,10 +604,10 @@ jobs:
             }
           }
 
-      - name: Sign MSI installer 
-        if: env.CODE_SIGN_PFX_BASE64 != '' && Test-Path ./SignOutput/rustdesk.msi
+      - name: Sign MSI installer
         shell: pwsh
         run: |
+          if: env.CODE_SIGN_PFX_BASE64 != '' && Test-Path ./SignOutput/rustdesk.msi
           $pfxPath = "$env:RUNNER_TEMP\signing.pfx"
           $password = "${{ secrets.CODE_SIGN_PASSWORD }}"
 
