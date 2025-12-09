@@ -145,7 +145,14 @@ jobs:
         with:
           repository: rustdesk/rustdesk
           submodules: recursive
-
+      - name: Replace custom patch files 
+        shell: bash
+        run: |
+          mkdir -p src/lang/
+          mkdir -p flutter/lib/desktop/pages/
+          curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/cn.rs" -o src/lang/cn.rs
+          curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/en.rs" -o src/lang/en.rs
+          curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/desktop_home_page.dart" -o flutter/lib/desktop/pages/desktop_home_page.dart
       - name: Install ImageMagick on Windows
         run: |
           choco install -y imagemagick.app --no-progress
@@ -210,7 +217,14 @@ jobs:
           sed -i -e "s|<div .link .custom-event url='https://rustdesk.com'>|<div .link .custom-event url='${{ fromJson(inputs.extras).urlLink }}'>|" ./src/ui/index.tis
           sed -i -e "s|<div .link .custom-event url='https://rustdesk.com/privacy.html'>|<div .link .custom-event url='${{ fromJson(inputs.extras).urlLink }}/privacy.html'>|" ./src/ui/index.tis
           sed -i -e "s|https://rustdesk.com/|${{fromJson(inputs.extras).urlLink }}|" ./res/setup.nsi
-
+      - name: custom Security Alert fontSize
+        continue-on-error: true
+        shell: bash
+        run: |
+          sed -i '/style: TextStyle(color: Colors\.red),/a\    textAlign: TextAlign.center,'  ./flutter/lib/common.dart
+          sed -i 's/\(style: TextStyle(color: Colors\.red\)\([),]\)/\1, fontSize: 14\2/g' ./flutter/lib/common.dart
+          sed -i '/if (bind\.mainGetBuildinOption(key: kOptionRemovePresetPasswordWarning) !=/,/^  }$/d' ./flutter/lib/common.dart
+          sed -i '/fontSize:/ { N; s/18,/16,/; }' ./flutter/lib/common.dart
       - name: change download link to custom
         if: fromJson(inputs.extras).downloadLink != 'https://rustdesk.com/download'
         continue-on-error: true
