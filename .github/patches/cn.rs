@@ -580,7 +580,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Multiple Windows sessions found", "发现多个 Windows 会话"),
         ("Please select the session you want to connect to", "请选择您要连接的会话"),
         ("powered_by_me", "由 LnDesk 提供支持"),
-        ("outgoing_only_desk_tip", ""),
+        ("outgoing_only_desk_tip", "当前版本是小马哥特质版"),
         ("preset_password_warning", "双击 ID 复制，粘贴给客服"),
 
         ("Security Alert", "温馨提示"),
