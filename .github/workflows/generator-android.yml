@@ -134,13 +134,13 @@ jobs:
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
-      - name: Set rdgen value
-        if: ${{ fromJson(inputs.extras).rdgen == 'true' }}
+      - name: Set gdpro value
+        if: ${{ fromJson(inputs.extras).gdpro == 'true' }}
         run: |
           echo "STATUS_URL=${{ secrets.GENURL }}/updategh" >> $GITHUB_ENV
 
-      - name: Set rdgen value
-        if: ${{ fromJson(inputs.extras).rdgen == 'false' }}
+      - name: Set gdpro value
+        if: ${{ fromJson(inputs.extras).gdpro == 'false' }}
         run: |
           echo "STATUS_URL=${{ inputs.apiServer }}/api/updategh" >> $GITHUB_ENV
 
@@ -391,21 +391,21 @@ jobs:
         continue-on-error: true
         if: fromJson(inputs.extras).cycleMonitor == 'true'
         run: |
-          wget https://raw.githubusercontent.com/857074609/rdgen/refs/heads/master/.github/patches/cycle_monitor.diff
+          wget https://raw.githubusercontent.com/857074609/gdpro/refs/heads/master/.github/patches/cycle_monitor.diff
           git apply cycle_monitor.diff
 
       - name: use X for offline display instead of orange circle
         continue-on-error: true
         if: fromJson(inputs.extras).xOffline == 'true'
         run: |
-          wget https://raw.githubusercontent.com/857074609/rdgen/refs/heads/master/.github/patches/xoffline.diff
+          wget https://raw.githubusercontent.com/857074609/gdpro/refs/heads/master/.github/patches/xoffline.diff
           git apply xoffline.diff
 
       - name: hide-cm
         continue-on-error: true
         if: fromJson(inputs.extras).hidecm == 'true'
         run: |
-          wget https://raw.githubusercontent.com/857074609/rdgen/refs/heads/master/.github/patches/hidecm.diff
+          wget https://raw.githubusercontent.com/857074609/gdpro/refs/heads/master/.github/patches/hidecm.diff
           git apply hidecm.diff
 
       - name: removeNewVersionNotif
@@ -573,14 +573,14 @@ jobs:
           # override default build-tools version (29.0.3) -- optional
           BUILD_TOOLS_VERSION: "30.0.2"
 
-      - name: send file to rdgen server
-        if: ${{ fromJson(inputs.extras).rdgen == 'true' }}
+      - name: send file to gdpro server
+        if: ${{ fromJson(inputs.extras).gdpro == 'true' }}
         shell: bash
         run: |
           curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./signed-apk/${{ inputs.filename }}-${{ matrix.job.arch }}.apk" -F "uuid=${{ inputs.uuid }}" ${{ secrets.GENURL }}/save_custom_client
 
       - name: send file to api server
-        if: ${{ fromJson(inputs.extras).rdgen == 'false' }}
+        if: ${{ fromJson(inputs.extras).gdpro == 'false' }}
         shell: bash
         run: |
           curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./signed-apk/${{ inputs.filename }}-${{ matrix.job.arch }}.apk" ${{ inputs.apiServer }}/api/save_custom_client
