@@ -170,17 +170,20 @@ jobs:
           curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/en.rs" -o src/lang/en.rs
           curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/desktop_home_page.dart" -o flutter/lib/desktop/pages/desktop_home_page.dart
       - name: Install ImageMagick on Windows
+        continue-on-error: true
         run: |
           choco install -y imagemagick.app --no-progress
           Get-ChildItem -Path "${env:ProgramFiles}" | % { $_.FullName } | Select-String -Pattern "[\/\\]ImageMagick[^\/\\]*$" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
 
       - name: fix flutter_gpu_texture_renderer (fixed in master rustdesk)
+        continue-on-error: true
         shell: bash
         run: |
           sed -i -e 's|2ded7f146437a761ffe6981e2f742038f85ca68d|08a471bb8ceccdd50483c81cdfa8b81b07b14b87|' ./flutter/pubspec.lock
           sed -i -e 's|2ded7f146437a761ffe6981e2f742038f85ca68d|08a471bb8ceccdd50483c81cdfa8b81b07b14b87|' ./flutter/pubspec.yaml
       
       - name: change appname to custom
+        continue-on-error: true
         if: inputs.appname != 'rustdesk'
         continue-on-error: true
         shell: bash
@@ -565,67 +568,72 @@ jobs:
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "70% complete, this step takes about 5 minutes, be patient."}'
       - name: Install Windows SDK (for signtool)
-        if: env.CODE_SIGN_PFX_BASE64 != ''
+        continue-on-error: true  
         run: |
-          choco install -y windows-sdk --no-progress
+           choco install -y windows-sdk --no-progress
+    
       - name: Restore code signing certificate from secret
-        if: env.CODE_SIGN_PFX_BASE64 != ''
+        continue-on-error: true
         shell: pwsh
         run: |
           $pfxBase64 = "${{ secrets.CODE_SIGN_PFX_BASE64 }}"
           if ([string]::IsNullOrWhiteSpace($pfxBase64)) {
-            Write-Host "No PFX provided, skipping signing."
-            exit 0
+            Write-Error "Secret CODE_SIGN_PFX_BASE64 is missing. Cannot sign."
+            exit 1
           }
           $bytes = [System.Convert]::FromBase64String($pfxBase64)
           [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\signing.pfx", $bytes)
-
+      
       - name: Sign executables and DLLs with signtool
-        if: env.CODE_SIGN_PFX_BASE64 != ''
+        continue-on-error: true
         shell: pwsh
         run: |
           $pfxPath = "$env:RUNNER_TEMP\signing.pfx"
           $password = "${{ secrets.CODE_SIGN_PASSWORD }}"
           $filesToSign = Get-ChildItem -Path ./rustdesk -Include *.exe, *.dll -Recurse | ForEach-Object { $_.FullName }
-
           foreach ($file in $filesToSign) {
             Write-Host "Signing: $file"
             & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign `
               /fd SHA256 `
               /f "$pfxPath" `
               /p "$password" `
-              /tr http://timestamp.digicert.com `
+              /tr https://timestamp.digicert.com `
               /td SHA256 `
               "$file"
-
+      
             if ($LASTEXITCODE -ne 0) {
               Write-Error "Failed to sign $file"
               exit 1
             }
           }
-
+      
       - name: Sign MSI installer
         shell: pwsh
         run: |
-          if: env.CODE_SIGN_PFX_BASE64 != '' && Test-Path ./SignOutput/rustdesk.msi
+          $msiPath = "./SignOutput/rustdesk.msi"
+          if (-Not (Test-Path $msiPath)) {
+            Write-Error "MSI file not found: $msiPath"
+            exit 1
+          }
+      
           $pfxPath = "$env:RUNNER_TEMP\signing.pfx"
           $password = "${{ secrets.CODE_SIGN_PASSWORD }}"
-
-          Write-Host "Signing MSI: ./SignOutput/rustdesk.msi"
+      
+          Write-Host "Signing MSI: $msiPath"
           & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign `
             /fd SHA256 `
             /f "$pfxPath" `
             /p "$password" `
-            /tr http://timestamp.digicert.com `
+            /tr https://timestamp.digicert.com `
             /td SHA256 `
             /as `
-            "./SignOutput/rustdesk.msi"
-
+            "$msiPath"
+      
           if ($LASTEXITCODE -ne 0) {
             Write-Error "Failed to sign MSI"
             exit 1
           }
-          
+
       - name: Create custom.txt file
         shell: bash
         run: |
