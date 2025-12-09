@@ -112,13 +112,13 @@ jobs:
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
-      - name: Set rdgen value
-        if: ${{ fromJson(inputs.extras).rdgen == 'true' }}
+      - name: Set gdpro value
+        if: ${{ fromJson(inputs.extras).gdpro == 'true' }}
         run: |
           echo "STATUS_URL=${{ secrets.GENURL }}/updategh" >> $env:GITHUB_ENV
 
-      - name: Set rdgen value
-        if: ${{ fromJson(inputs.extras).rdgen == 'false' }}
+      - name: Set gdpro value
+        if: ${{ fromJson(inputs.extras).gdpro == 'false' }}
         run: |
           echo "STATUS_URL=${{ inputs.apiServer }}/api/updategh" >> $env:GITHUB_ENV
 
@@ -230,7 +230,7 @@ jobs:
       - name: allow custom.txt
         continue-on-error: true
         run: |
-          Invoke-WebRequest -Uri https://raw.githubusercontent.com/857074609/rdgen/refs/heads/master/.github/patches/allowCustom.diff -OutFile allowCustom.diff
+          Invoke-WebRequest -Uri https://raw.githubusercontent.com/857074609/gdpro/refs/heads/master/.github/patches/allowCustom.diff -OutFile allowCustom.diff
           git apply allowCustom.diff
 
       - name: Install LLVM and Clang
@@ -485,14 +485,14 @@ jobs:
         run: |
           mv ./SignOutput/rustdesk.exe "./SignOutput/${{ inputs.filename }}.exe" || echo "rustdesk"
 
-      - name: send file to rdgen server
-        if: ${{ fromJson(inputs.extras).rdgen == 'true' }}
+      - name: send file to gdpro server
+        if: ${{ fromJson(inputs.extras).gdpro == 'true' }}
         shell: bash
         run: |
           curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{ inputs.filename }}.exe" -F "uuid=${{ inputs.uuid }}" ${{ secrets.GENURL }}/save_custom_client
 
       - name: send file to api server
-        if: ${{ fromJson(inputs.extras).rdgen == 'false' }}
+        if: ${{ fromJson(inputs.extras).gdpro == 'false' }}
         shell: bash
         run: |
           curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{ inputs.filename }}.exe" ${{ inputs.apiServer }}/api/save_custom_client
