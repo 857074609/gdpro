@@ -565,12 +565,6 @@ jobs:
           method: 'POST'
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "70% complete, this step takes about 5 minutes, be patient."}'
-
-      - name: Install Windows SDK (for signtool)
-        run: |
-          choco install -y windows-sdk-10-version-1809-all --no-progress
-        shell: pwsh
-
       - name: Restore code signing certificate from secret
         id: restore-cert
         shell: pwsh
@@ -593,20 +587,31 @@ jobs:
             Write-Error "Failed to decode or write PFX certificate: $_"
             exit 1
           }
-
+      
       - name: Locate signtool.exe
         id: find-signtool
         if: steps.restore-cert.outputs.cert_restored == 'true'
         shell: pwsh
         run: |
-          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Include signtool.exe | Select-Object -First 1
-          if (-not $signtool) {
-            Write-Error "signtool.exe not found in Windows SDK installation."
-            exit 1
+          $preferredVersions = @("10.0.19041.0", "10.0.17763.0")
+          $signtool = $null
+      
+          foreach ($v in $preferredVersions) {
+              $candidate = "C:\Program Files (x86)\Windows Kits\10\bin\$v\x64\signtool.exe"
+              if (Test-Path $candidate) {
+                  $signtool = $candidate
+                  break
+              }
           }
-          Write-Host "Using signtool: $($signtool.FullName)"
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "signtool_path=$($signtool.FullName)" -Encoding UTF8
-
+      
+          if (-not $signtool) {
+              Write-Error "No signtool found for supported SDK versions: $($preferredVersions -join ', ')"
+              exit 1
+          }
+      
+          Write-Host "Using signtool: $signtool"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "signtool_path=$signtool" -Encoding UTF8
+      
       - name: Sign EXE and DLL files
         if: steps.restore-cert.outputs.cert_restored == 'true'
         shell: pwsh
@@ -614,13 +619,13 @@ jobs:
           $pfxPath = "${{ steps.restore-cert.outputs.pfx_path }}"
           $password = "${{ secrets.CODE_SIGN_PASSWORD }}"
           $signtool = "${{ steps.find-signtool.outputs.signtool_path }}"
-
+      
           $files = Get-ChildItem -Path ./rustdesk -Include *.exe, *.dll -Recurse | ForEach-Object { $_.FullName }
           if ($files.Count -eq 0) {
             Write-Host "No EXE/DLL files found to sign."
             return
           }
-
+      
           foreach ($file in $files) {
             Write-Host "Signing: $file"
             & $signtool sign /fd SHA256 /f "$pfxPath" /p "$password" /tr https://timestamp.digicert.com /td SHA256 "$file"
@@ -629,7 +634,7 @@ jobs:
               exit 1
             }
           }
-
+      
       - name: Sign MSI installer
         if: steps.restore-cert.outputs.cert_restored == 'true'
         shell: pwsh
@@ -639,18 +644,18 @@ jobs:
             Write-Host "MSI not found at $msiPath. Skipping MSI signing."
             return
           }
-
+      
           $pfxPath = "${{ steps.restore-cert.outputs.pfx_path }}"
           $password = "${{ secrets.CODE_SIGN_PASSWORD }}"
           $signtool = "${{ steps.find-signtool.outputs.signtool_path }}"
-
+      
           Write-Host "Signing MSI: $msiPath"
           & $signtool sign /fd SHA256 /f "$pfxPath" /p "$password" /tr https://timestamp.digicert.com /td SHA256 /as "$msiPath"
           if ($LASTEXITCODE -ne 0) {
             Write-Error "Failed to sign MSI"
             exit 1
           }
-
+      
       - name: Clean up temporary certificate
         if: always() && steps.restore-cert.outputs.cert_restored == 'true'
         shell: pwsh
@@ -660,7 +665,7 @@ jobs:
             Remove-Item $pfxPath -Force
             Write-Host "Temporary certificate deleted."
           }
-
+      
       - name: Upload signed artifacts (optional)
         if: success()
         uses: actions/upload-artifact@v4
