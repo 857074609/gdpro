@@ -78,7 +78,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   }
 
   Widget buildLeftPane(BuildContext context) {
-    final isIncomingOnly = bind.isIncomingOnly();
+    final isIncomingOnly = true;
     final isOutgoingOnly = bind.isOutgoingOnly();
   //final children = <Widget> 表示的是UI中不同Widget放置的位置
     final children = <Widget>[
@@ -93,10 +93,10 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           buildTip(context),
           const SizedBox(height: 45), //增加板块的间距
           buildIDBoard(context),
-        //  buildPasswordBoard(context),
+          buildPasswordBoard(context),
           const SizedBox(height: 45), //增加板块的间距
           buildPresetPasswordWarning(),
-      //  buildWeChatSupportBoard(context),//图片模块
+       //   buildWeChatSupportBoard(context),//新增图片
          ],
 //原来帮助卡片FutureBuilder，已经删除
       buildPluginEntry(),
@@ -243,23 +243,23 @@ buildIDBoard(BuildContext context) {
     );
   }
 //以下是密码框参数
-// buildPasswordBoard(BuildContext context) {
+  buildPasswordBoard(BuildContext context) {
 //    return ChangeNotifierProvider.value(
 //        value: gFFI.serverModel,
 //        child: Consumer<ServerModel>(
 //          builder: (context, model, child) {
-//           return Container(); //移除密码框return buildPasswordBoard2(context, model);
+            return Container(); //移除密码框return buildPasswordBoard2(context, model);
 //          },
 //        ));
-//  }
+  }
 
-//  buildPasswordBoard2(BuildContext context, ServerModel model) {
+  buildPasswordBoard2(BuildContext context, ServerModel model) {
 //    RxBool refreshHover = false.obs;
 //    RxBool editHover = false.obs;
 //    final textColor = Theme.of(context).textTheme.titleLarge?.color;
 //    final showOneTime = model.approveMode != 'click' &&
 //        model.verificationMethod != kUsePermanentPassword;
-//    return Container();  //return Container(从这里到388行是一个闭合.
+    return Container();  //return Container(从这里到388行是一个闭合.
 //      margin: EdgeInsets.only(left: 20.0, right: 16, top: 13, bottom: 13),
 //      child: Row(
 //        crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -350,17 +350,17 @@ buildIDBoard(BuildContext context) {
 //      ),
 //    );
   }
-//额外添加图片部分
- // Widget buildWeChatSupportBoard(BuildContext context) {
- // return Container(
- //   width: 280, // 固定宽度
+//新增图片部分
+//  Widget buildWeChatSupportBoard(BuildContext context) {
+//  return Container(
+//    width: 280, // 固定宽度
 //    decoration: BoxDecoration(
- //     border: Border.all(color: Colors.grey.shade300),
+//      border: Border.all(color: Colors.grey.shade300),
 //      borderRadius: BorderRadius.circular(8),
-//    ),
+ //   ),
  //   child: Image.asset(
-//      'assets/vx.png',
-//      fit: BoxFit.contain, // 保持宽高比，完整显示图片
+ //     'assets/wx.png',
+ //     fit: BoxFit.contain, // 保持宽高比，完整显示图片
 //    ),
 //  );
 // }
@@ -434,9 +434,9 @@ buildIDBoard(BuildContext context) {
 //          onPressed,
 //          closeButton: true);
 //    }
-    if (systemError.isNotEmpty) {
-     return buildInstallCard("", systemError, "", () {});
-   }
+//    if (systemError.isNotEmpty) {
+//      return buildInstallCard("", systemError, "", () {});
+//    }
 
     if (isWindows && !bind.isDisableInstallation()) {
       if (!bind.mainIsInstalled()) {
