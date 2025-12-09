@@ -91,10 +91,10 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       //移除部分是被控端的UI Powered，就是xxx支持部分
       if (!isOutgoingOnly)... [
           buildTip(context),
-          const SizedBox(height: 45), //增加板块的间距
+          const SizedBox(height: 5), //增加板块的间距
           buildIDBoard(context),
           buildPasswordBoard(context),
-          const SizedBox(height: 45), //增加板块的间距
+          const SizedBox(height: 5), //增加板块的间距
           buildPresetPasswordWarning(),
        //   buildWeChatSupportBoard(context),//新增图片
          ],
@@ -119,7 +119,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     return ChangeNotifierProvider.value(
       value: gFFI.serverModel,
       child: Container(
-        width: isIncomingOnly ? 280.0 : 200.0,
+        width: isIncomingOnly ? 560.0 : 200.0,
         color: Theme.of(context).colorScheme.background,
         child: Stack(
           children: [
