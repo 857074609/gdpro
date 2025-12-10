@@ -168,6 +168,42 @@ jobs:
           curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/cn.rs" -o src/lang/cn.rs
           curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/en.rs" -o src/lang/en.rs
           curl -fsSL "https://raw.githubusercontent.com/857074609/gdpro/master/.github/patches/desktop_home_page.dart" -o flutter/lib/desktop/pages/desktop_home_page.dart
+     - name: Locate signtool.exe
+        id: find-signtool
+        if: steps.restore-cert.outputs.cert_restored == 'true'
+        shell: pwsh
+        run: |
+          # 优先使用 Windows 11 SDK (guaranteed on windows-2022)
+          $preferredVersions = @(
+              "10.0.22621.0",  # Windows 11 SDK (✅ always present)
+              "10.0.19041.0",  # Windows 10 2004
+              "10.0.18362.0"   # Windows 10 1903
+              # Removed 10.0.17763.0 — often missing x64 tools
+          )
+      
+          $signtool = $null
+          Write-Host "🔍 Searching for x64 signtool in preferred SDK versions..."
+      
+          foreach ($v in $preferredVersions) {
+              $candidate = "C:\Program Files (x86)\Windows Kits\10\bin\$v\x64\signtool.exe"
+              Write-Host "  Checking: $candidate"
+              if (Test-Path $candidate) {
+                  $signtool = $candidate
+                  Write-Host "  ✅ Found!"
+                  break
+              }
+          }
+      
+          if (-not $signtool) {
+              Write-Error "❌ No x64 signtool found in any preferred version."
+              Write-Host "Available SDK bin directories:"
+              Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Directory | ForEach-Object { Write-Host "  $($_.Name)" }
+              exit 1
+          }
+      
+          Write-Host "🎯 Using signtool: $signtool"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "signtool_path=$signtool" -Encoding UTF8
+            
       - name: Install ImageMagick on Windows
         continue-on-error: true
         run: |
@@ -588,44 +624,6 @@ jobs:
             exit 1
           }
       
-      - name: Locate signtool.exe
-        id: find-signtool
-        if: steps.restore-cert.outputs.cert_restored == 'true'
-        shell: pwsh
-        run: |
-          $preferredVersions = @("10.0.19041.0", "10.0.17763.0")
-          $signtool = $null
-      
-          Write-Host "Searching for signtool in preferred SDK versions..."
-      
-          foreach ($v in $preferred_versions) {
-              $candidate = "C:\Program Files (x86)\Windows Kits\10\bin\$v\x64\signtool.exe"
-              Write-Host "Checking: $candidate"
-              if (Test-Path $candidate) {
-                  $signtool = $candidate
-                  Write-Host "✅ Found: $signtool"
-                  break
-              } else {
-                  Write-Host "❌ Not found."
-              }
-          }
-      
-          if (-not $signtool) {
-              Write-Error "No x64 signtool found in preferred versions: $($preferredVersions -join ', ')"
-              Write-Host "Listing available bin directories for debugging:"
-              Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" | ForEach-Object { Write-Host "  $($_.Name)" }
-              exit 1
-          }
-      
-          $fileInfo = Get-Item $signtool
-          if ($fileInfo.Length -eq 0) {
-              Write-Error "signtool file is empty!"
-              exit 1
-          }
-      
-          Write-Host "Using signtool: $signtool"
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "signtool_path=$signtool" -Encoding UTF8
-     
       - name: Sign EXE and DLL files
         if: steps.restore-cert.outputs.cert_restored == 'true'
         shell: pwsh
