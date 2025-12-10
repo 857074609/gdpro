@@ -580,26 +580,67 @@ jobs:
       - name: Sign DLLs and Executables
         shell: pwsh
         run: |
-          $pfxPath = "./code_sign.pfx"
-          $password = "${{ secrets.CODE_SIGN_PASSWORD }}"
-          $files = Get-ChildItem ./rustdesk/*.dll, ./rustdesk/*.exe
+      # 定义函数获取 signtool 路径
+          function Get-SignToolPath {
+          $possiblePaths = @(
+         "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22631.0\x64\signtool.exe",
+         "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe",
+         "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22000.0\x64\signtool.exe",
+         "C:\Program Files (x86)\Windows Kits\10\bin\10.0.20348.0\x64\signtool.exe",
+         "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe"
+      )
       
-          foreach ($file in $files) {
-            Write-Host "Signing: $($file.FullName)"
-            signtool.exe sign `
-              /f "$pfxPath" `
-              /p "$password" `
-              /fd SHA256 `
-              /tr "https://timestamp.digicert.com" `
-              /td SHA256 `
-              /n "${{ inputs.appname }}" `
-              "$($file.FullName)"
-            
-            if ($LASTEXITCODE -ne 0) {
-              Write-Error "Failed to sign $($file.FullName)"
-              exit 1
-            }
-          }
+         foreach ($path in $possiblePaths) {
+         if (Test-Path $path) {
+          return $path
+        }
+      }
+      
+      # 如果常见路径都没有，尝试递归查找
+        $found = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10" -Filter "signtool.exe" -Recurse |
+        Select-Object -First 1 -ExpandProperty FullName
+      
+        if ($found) {
+        return $found
+      }
+      
+      throw "signtool.exe not found on the system"
+    }
+     
+     $signtoolPath = Get-SignToolPath
+     Write-Host "Using signtool: $signtoolPath"
+    
+     # 签名文件
+     $files = Get-ChildItem ./rustdesk/*.dll, ./rustdesk/*.exe
+    
+     foreach ($file in $files) {
+      Write-Host "Signing: $($file.FullName)"
+      
+      & $signtoolPath sign `
+        /f "./code_sign.pfx" `
+        /p "${{ secrets.CODE_SIGN_PASSWORD }}" `
+        /fd SHA256 `
+        /tr "https://timestamp.digicert.com" `
+        /td SHA256 `
+        "$($file.FullName)"
+      
+      if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to sign $($file.FullName). Exit code: $LASTEXITCODE"
+        # 可以添加重试逻辑
+        Write-Host "Retrying..."
+        & $signtoolPath sign `
+          /f "./code_sign.pfx" `
+          /p "${{ secrets.CODE_SIGN_PASSWORD }}" `
+          /fd SHA256 `
+          /tr "http://timestamp.digicert.com" `
+          /td SHA256 `
+          "$($file.FullName)"
+          
+        if ($LASTEXITCODE -ne 0) {
+          exit 1
+        }
+      }
+    }
 
       - name: Create custom.txt file
         shell: bash
