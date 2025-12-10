@@ -566,33 +566,40 @@ jobs:
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "70% complete, this step takes about 5 minutes, be patient."}'
       
-      - name: zip dlls
-        continue-on-error: true
+      - name: Decode PFX from Base64
         shell: pwsh
         run: |
-          Compress-Archive -Path ./rustdesk/*.dll, ./rustdesk/*.exe -DestinationPath ./rustdesk/unsigned_files.zip -CompressionLevel Fastest
+          $pfxBase64 = "${{ secrets.CODE_SIGN_PFX_BASE64 }}"
+          $pfxBytes = [Convert]::FromBase64String($pfxBase64)
+          $pfxPath = "./code_sign.pfx"
+          [IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
+          Write-Host "PFX file saved to $pfxPath"
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
 
-      - name: sign dlls
-        continue-on-error: true
-        shell: bash
-        run: |
-          if [ ! -z "${{ secrets.SIGN_BASE_URL }}" ] && [ ! -z "${{ secrets.SIGN_API_KEY }}" ]; then
-            curl -X POST -F "file=@./rustdesk/unsigned_files.zip" \
-              -H "X-API-KEY: ${{ secrets.SIGN_API_KEY }}" \
-              -m 900 \
-              "${{ secrets.SIGN_BASE_URL }}/sign/" -o ./rustdesk/signed_files.zip
-          else
-            echo "Signing skipped - signing URL or API key not configured"
-            cp ./rustdesk/unsigned_files.zip ./rustdesk/signed_files.zip
-          fi
-
-      - name: unzip dlls
-        continue-on-error: true
+      - name: Sign DLLs and Executables
         shell: pwsh
         run: |
-          Expand-Archive -Path ./rustdesk/signed_files.zip -DestinationPath ./rustdesk/ -Force
-          Remove-Item ./rustdesk/unsigned_files.zip
-          Remove-Item ./rustdesk/signed_files.zip
+          $pfxPath = "./code_sign.pfx"
+          $password = "${{ secrets.CODE_SIGN_PASSWORD }}"
+          $files = Get-ChildItem ./rustdesk/*.dll, ./rustdesk/*.exe
+      
+          foreach ($file in $files) {
+            Write-Host "Signing: $($file.FullName)"
+            signtool.exe sign `
+              /f "$pfxPath" `
+              /p "$password" `
+              /fd SHA256 `
+              /tr "https://timestamp.digicert.com" `
+              /td SHA256 `
+              /n "${{ inputs.appname }}" `
+              "$($file.FullName)"
+            
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Failed to sign $($file.FullName)"
+              exit 1
+            }
+          }
 
       - name: Create custom.txt file
         shell: bash
@@ -638,33 +645,43 @@ jobs:
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "85% complete"}'
 
-      - name: zip exe and msi
-        continue-on-error: true
+      - name: Sign Final ExE and MSI
         shell: pwsh
         run: |
-          Compress-Archive -Path ./SignOutput/*.exe, ./SignOutput/*.msi -DestinationPath ./SignOutput/unsigned_files.zip -CompressionLevel Fastest
-
-      - name: sign exe and msi
-        continue-on-error: true
-        shell: bash
-        run: |
-          if [ ! -z "${{ secrets.SIGN_BASE_URL }}" ] && [ ! -z "${{ secrets.SIGN_API_KEY }}" ]; then
-            curl -X POST -F "file=@./SignOutput/unsigned_files.zip" \
-              -H "X-API-KEY: ${{ secrets.SIGN_API_KEY }}" \
-              -m 900 \
-              "${{ secrets.SIGN_BASE_URL }}/sign/" -o ./SignOutput/signed_files.zip
-          else
-            echo "Signing skipped - signing URL or API key not configured"
-            cp ./SignOutput/unsigned_files.zip ./SignOutput/signed_files.zip
-          fi
-
-      - name: unzip exe and msi
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          Expand-Archive -Path ./SignOutput/signed_files.zip -DestinationPath ./SignOutput/ -Force
-          Remove-Item ./SignOutput/unsigned_files.zip
-          Remove-Item ./SignOutput/signed_files.zip
+          $pfxPath = "./code_sign.pfx"
+          $password = "${{ secrets.CODE_SIGN_PASSWORD }}"
+          $timestampUrl = "https://timestamp.digicert.com"
+          
+          $exeFile = "./SignOutput/${{ inputs.filename }}.exe"
+          $msiFile = "./SignOutput/${{ inputs.filename }}.msi"
+      
+          if (Test-Path $exeFile) {
+            Write-Host "Signing final EXE: $exeFile"
+            signtool.exe sign `
+              /f "$pfxPath" `
+              /p "$password" `
+              /fd SHA256 `
+              /tr "$timestampUrl" `
+              /td SHA256 `
+              /n "${{ inputs.appname }}" `
+              "$exeFile"
+            
+            if ($LASTEXITCODE -ne 0) { throw "Signing EXE failed" }
+          }
+      
+          if (Test-Path $msiFile) {
+            Write-Host "Signing final MSI: $msiFile"
+            signtool.exe sign `
+              /f "$pfxPath" `
+              /p "$password" `
+              /fd SHA256 `
+              /tr "$timestampUrl" `
+              /td SHA256 `
+              /n "${{ inputs.appname }}" `
+              "$msiFile"
+            
+            if ($LASTEXITCODE -ne 0) { throw "Signing MSI failed" }
+          }
 
       - name: rename rustdesk.exe to filename.exe
         run: |
