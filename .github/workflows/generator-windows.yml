@@ -623,7 +623,41 @@ jobs:
             Write-Error "Failed to decode or write PFX certificate: $_"
             exit 1
           }
+      - name: Locate signtool.exe
+        id: find-signtool
+        if: steps.restore-cert.outputs.cert_restored == 'true'
+        shell: pwsh
+        run: |
+          # 优先使用 Windows 11 SDK (guaranteed on windows-2022)
+          $preferredVersions = @(
+              "10.0.22621.0",  # Windows 11 SDK (✅ always present)
+              "10.0.19041.0",  # Windows 10 2004
+              "10.0.18362.0"   # Windows 10 1903
+              # Removed 10.0.17763.0 — often missing x64 tools
+          )
       
+          $signtool = $null
+          Write-Host "🔍 Searching for x64 signtool in preferred SDK versions..."
+      
+          foreach ($v in $preferredVersions) {
+              $candidate = "C:\Program Files (x86)\Windows Kits\10\bin\$v\x64\signtool.exe"
+              Write-Host "  Checking: $candidate"
+              if (Test-Path $candidate) {
+                  $signtool = $candidate
+                  Write-Host "  ✅ Found!"
+                  break
+              }
+          }
+      
+          if (-not $signtool) {
+              Write-Error "❌ No x64 signtool found in any preferred version."
+              Write-Host "Available SDK bin directories:"
+              Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Directory | ForEach-Object { Write-Host "  $($_.Name)" }
+              exit 1
+          }
+      
+          Write-Host "🎯 Using signtool: $signtool"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "signtool_path=$signtool" -Encoding UTF8
       - name: Sign EXE and DLL files
         if: steps.restore-cert.outputs.cert_restored == 'true'
         shell: pwsh
