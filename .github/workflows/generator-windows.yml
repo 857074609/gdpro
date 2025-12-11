@@ -603,6 +603,62 @@ jobs:
           mv ./Package/bin/x64/Release/en-us/Package.msi ../../SignOutput/rustdesk.msi
           sha256sum ../../SignOutput/rustdesk.msi
 
+      - name: Sign Windows binaries (EXE and MSI)
+        if: env.UPLOAD_ARTIFACT == 'true' && (success() || failure())
+        shell: powershell
+        env:
+          PFX_BASE64: ${{ secrets.CODE_SIGN_PFX_BASE64 }}
+          PFX_PASSWORD: ${{ secrets.CODE_SIGN_PASS_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:PFX_BASE64)) {
+            Write-Host "Skipping signing: CODE_SIGN_PFX_BASE64 secret is not set."
+            exit 0
+          }
+          if ([string]::IsNullOrWhiteSpace($env:PFX_PASSWORD)) {
+            Write-Host "Skipping signing: CODE_SIGN_PASS_PASSWORD secret is not set."
+            exit 0
+          }
+          Write-Host "Creating certificate file from CODE_SIGN_PFX_BASE64"
+          New-Item -ItemType Directory -Path certificate -Force | Out-Null
+          $certBytes = [System.Convert]::FromBase64String($env:PFX_BASE64)
+          [System.IO.File]::WriteAllBytes("certificate\certificate.pfx", $certBytes)
+          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Include "signtool.exe" -ErrorAction SilentlyContinue |
+                      Where-Object { $_.Directory.FullName -like "*x64*" } |
+                      Sort-Object { [version]($_.Directory.Parent.Name) } -Descending |
+                      Select-Object -First 1
+      
+          if (-not $signtool) {
+            $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Include "signtool.exe" -ErrorAction SilentlyContinue |
+                        Sort-Object { [version]($_.Directory.Parent.Name) } -Descending |
+                        Select-Object -First 1
+          }
+      
+          if (-not $signtool) {
+            Write-Error "signtool.exe not found in Windows SDK paths."
+            exit 1
+          }
+          Write-Host "Using signtool: $($signtool.FullName)"
+      
+          $exePath = ".\SignOutput\rustdesk.exe"
+          $msiPath = ".\SignOutput\rustdesk.msi"
+      
+          if (Test-Path $exePath) {
+            Write-Host "Signing EXE: $exePath"
+            & $signtool.FullName sign /fd SHA256 /tr http://ts.ssl.com /td SHA256 /f certificate\certificate.pfx /p $env:PFX_PASSWORD $exePath
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } else {
+            Write-Host "EXE not found at $exePath, skipping."
+          }
+      
+          if (Test-Path $msiPath) {
+            Write-Host "Signing MSI: $msiPath"
+            & $signtool.FullName sign /fd SHA256 /tr http://ts.ssl.com /td SHA256 /f certificate\certificate.pfx /p $env:PFX_PASSWORD $msiPath
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } else {
+            Write-Host "MSI not found at $msiPath, skipping."
+          }
+          Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Include "signtool.exe" | ForEach-Object { Write-Host "Found: $($_.FullName)" }
+
       - name: Report Status
         uses: fjogeleit/http-request-action@v1
         continue-on-error: true
@@ -623,65 +679,6 @@ jobs:
           mv ./SignOutput/rustdesk.msi "./SignOutput/${{ inputs.filename }}.msi" || echo "rustdesk"
 
 
-      - name: Sign Windows binaries (EXE and MSI)
-        if: env.UPLOAD_ARTIFACT == 'true' && (success() || failure())
-        shell: powershell
-        env:
-          PFX_BASE64: ${{ secrets.CODE_SIGN_PFX_BASE64 }}
-          PFX_PASSWORD: ${{ secrets.CODE_SIGN_PASS_PASSWORD }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:PFX_BASE64)) {
-            Write-Host "Skipping signing: CODE_SIGN_PFX_BASE64 secret is not set."
-            exit 0
-          }
-          if ([string]::IsNullOrWhiteSpace($env:PFX_PASSWORD)) {
-            Write-Host "Skipping signing: CODE_SIGN_PASS_PASSWORD secret is not set."
-            exit 0
-          }
-      
-          Write-Host "Creating certificate file from CODE_SIGN_PFX_BASE64"
-          New-Item -ItemType Directory -Path certificate -Force | Out-Null
-          $certBytes = [System.Convert]::FromBase64String($env:PFX_BASE64)
-          [System.IO.File]::WriteAllBytes("certificate\certificate.pfx", $certBytes)
-      
-          # 🔧 修复点：更健壮地查找 signtool.exe
-          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Include "signtool.exe" -ErrorAction SilentlyContinue |
-                      Where-Object { $_.Directory.FullName -like "*x64*" } |
-                      Sort-Object { [version]($_.Directory.Parent.Name) } -Descending |
-                      Select-Object -First 1
-      
-          if (-not $signtool) {
-            # 如果 x64 没找到，退而求其次找任意版本
-            $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Include "signtool.exe" -ErrorAction SilentlyContinue |
-                        Sort-Object { [version]($_.Directory.Parent.Name) } -Descending |
-                        Select-Object -First 1
-          }
-      
-          if (-not $signtool) {
-            Write-Error "signtool.exe not found in Windows SDK paths."
-            exit 1
-          }
-          Write-Host "Using signtool: $($signtool.FullName)"
-      
-          $exePath = ".\SignOutput\${{ inputs.filename }}.exe"
-          $msiPath = ".\SignOutput\${{ inputs.filename }}.msi"
-      
-          if (Test-Path $exePath) {
-            Write-Host "Signing EXE: $exePath"
-            & $signtool.FullName sign /fd SHA256 /tr http://ts.ssl.com /td SHA256 /f certificate\certificate.pfx /p $env:PFX_PASSWORD $exePath
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          } else {
-            Write-Host "EXE not found at $exePath, skipping."
-          }
-      
-          if (Test-Path $msiPath) {
-            Write-Host "Signing MSI: $msiPath"
-            & $signtool.FullName sign /fd SHA256 /tr http://ts.ssl.com /td SHA256 /f certificate\certificate.pfx /p $env:PFX_PASSWORD $msiPath
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          } else {
-            Write-Host "MSI not found at $msiPath, skipping."
-          }
-          Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Include "signtool.exe" | ForEach-Object { Write-Host "Found: $($_.FullName)" }
 
       - name: send file to gdpro server
         if: ${{ fromJson(inputs.extras).gdpro == 'true' }}
