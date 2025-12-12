@@ -693,25 +693,32 @@ jobs:
         run: |
           curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{ inputs.filename }}.exe" ${{ inputs.apiServer }}/api/save_custom_client
           curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{ inputs.filename }}.msi" ${{ inputs.apiServer }}/api/save_custom_client || true
-       - name: Create GitHub Release and Upload Assets
-          if: success()
-          uses: softprops/action-gh-release@v2
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          with:
-            tag_name: custom/${{ inputs.uuid }}
-            name: "${{ inputs.appname }} - Custom Build"
-            body: |
-              Generated on: ${{ fromJson('{"date": "' + format('%Y-%m-%d %H:%M UTC', github.event.created_at || '') + '"}') }}
-              App Name: `${{ inputs.appname }}`
-              Filename: `${{ inputs.filename }}`
-              Rendezvous Server: `${{ inputs.server }}`
-              API Server: `${{ inputs.apiServer }}`
-              UUID: `${{ inputs.uuid }}`
-            prerelease: true
-            files: |
-              ./SignOutput/${{ inputs.filename }}.exe
-              ./SignOutput/${{ inputs.filename }}.msi
+      - name: Generate timestamp
+        id: time
+        run: echo "value=$(date -u '+%Y-%m-%d %H:%M UTC')" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release and Upload Assets
+        if: success()
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: custom/${{ inputs.uuid }}
+          name: "${{ inputs.appname }} - Custom Build"
+          body: |
+            Generated on: ${{ steps.time.outputs.value }}
+            
+            - App Name: `${{ inputs.appname }}`
+            - Filename: `${{ inputs.filename }}`
+            - Rendezvous Server: `${{ inputs.server }}`
+            - API Server: `${{ inputs.apiServer }}`
+            - UUID: `${{ inputs.uuid }}`
+            
+            > This is an automatically generated custom client.
+          prerelease: true
+          files: |
+            ./SignOutput/${{ inputs.filename }}.exe
+            ./SignOutput/${{ inputs.filename }}.msi
       - name: Report Status
         uses: fjogeleit/http-request-action@v1
         with:
