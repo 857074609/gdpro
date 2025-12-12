@@ -698,19 +698,19 @@ jobs:
 
       - name: rename EXE
         run: |
-          mv ./SignOutput/rustdesk.exe "./SignOutput/$BUILD_FILENAME.exe" || echo "rustdesk"
+          mv ./SignOutput/rustdesk.exe "./SignOutput/${{BUILD_FILENAME}}.exe" || echo "rustdesk"
 
       - name: rename MSI
         continue-on-error: true
         run: |
-          mv ./SignOutput/rustdesk.msi "./SignOutput/$BUILD_FILENAME.msi" || echo "rustdesk"
+          mv ./SignOutput/rustdesk.msi "./SignOutput/${{BUILD_FILENAME}}.msi" || echo "rustdesk"
 
       - name: send file server
         if: ${{ fromJson(inputs.extras).gdpro == 'true' }}
         shell: bash
         run: |
-          curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/$BUILD_FILENAME.exe" -F "uuid=${{ inputs.uuid }}" ${{ secrets.GENURL }}/save_custom_client
-          curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/$BUILD_FILENAME.msi" -F "uuid=${{ inputs.uuid }}" ${{ secrets.GENURL }}/save_custom_client || true
+          curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{BUILD_FILENAME}}.exe" -F "uuid=${{ inputs.uuid }}" ${{ secrets.GENURL }}/save_custom_client
+          curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{BUILD_FILENAME}}.msi" -F "uuid=${{ inputs.uuid }}" ${{ secrets.GENURL }}/save_custom_client || true
 
    
        - name: Create GitHub Release and Upload Assets
@@ -719,12 +719,12 @@ jobs:
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
-            tag_name: "$BUILD_FILENAME"
-            name: "$BUILD_FILENAME"
+            tag_name: "${{BUILD_FILENAME}}"
+            name: "${{BUILD_FILENAME}}"
             prerelease: true
             files: |
-              ./SignOutput/$BUILD_FILENAME.exe
-              ./SignOutput/$BUILD_FILENAME.msi
+              ./SignOutput/${{BUILD_FILENAME}}.exe
+              ./SignOutput/${{BUILD_FILENAME}}.msi
       - name: Report Status
         uses: fjogeleit/http-request-action@v1
         with:
