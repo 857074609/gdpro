@@ -133,7 +133,7 @@ jobs:
         run: |
           echo "STATUS_URL=${{ inputs.apiServer }}/api/updategh" >> $env:GITHUB_ENV
 
-      - name: Report Status 5%
+      - name: Report Status
         uses: fjogeleit/http-request-action@v1
         continue-on-error: true
         with:
@@ -291,7 +291,7 @@ jobs:
         with:
           version: ${{ env.LLVM_VERSION }}
 
-      - name: Report Status 10%
+      - name: Report Status
         uses: fjogeleit/http-request-action@v1
         continue-on-error: true
         with:
@@ -329,7 +329,7 @@ jobs:
           targets: ${{ matrix.job.target }}
           components: "rustfmt"
 
-      - name: Report Status 15%
+      - name: Report Status
         uses: fjogeleit/http-request-action@v1
         continue-on-error: true
         with:
@@ -342,7 +342,7 @@ jobs:
         with:
           prefix-key: ${{ matrix.job.os }}
         
-      - name: Report Status 20%
+      - name: Report Status
         uses: fjogeleit/http-request-action@v1
         continue-on-error: true
         with:
@@ -453,7 +453,7 @@ jobs:
       #             <requestedExecutionLevel level="requireAdministrator" uiAccess="false"/> \
       #           </security>' ./flutter/windows/runner/runner.exe.manifest
 
-      - name: Report Status 25%
+      - name: Report Status
         uses: fjogeleit/http-request-action@v1
         continue-on-error: true
         with:
@@ -472,7 +472,7 @@ jobs:
           flutter pub run flutter_launcher_icons
           cd ..
 
-      - name: Report Status 50%
+      - name: Report Status
         uses: fjogeleit/http-request-action@v1
         continue-on-error: true
         with:
@@ -557,7 +557,7 @@ jobs:
           name: topmostwindow-artifacts
           path: "./rustdesk"
 
-      - name: Report Status 70%
+      - name: Report Status
         uses: fjogeleit/http-request-action@v1
         continue-on-error: true
         with:
@@ -659,7 +659,7 @@ jobs:
           }
           Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Include "signtool.exe" | ForEach-Object { Write-Host "Found: $($_.FullName)" }
 
-      - name: Report Status 85%
+      - name: Report Status
         uses: fjogeleit/http-request-action@v1
         continue-on-error: true
         with:
@@ -667,58 +667,52 @@ jobs:
           method: 'POST'
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "85% complete"}'
-      
-      - name: Generate Short UUID
+
+
+      - name: rename rustdesk.exe to filename.exe
         run: |
-          full_uuid=$(uuidgen)
-          short_uuid=$(echo "$full_uuid" | tr -d '-' | cut -c1-8)
-          echo "SHORT_UUID=$short_uuid" >> $GITHUB_ENV
-          final_name="${{ inputs.appname }}-${{ inputs.conn_type }}-$short_uuid"
-          echo "FINAL_FILENAME=$final_name" >> $GITHUB_ENV
-      
-      - name: Rename rustdesk.exe
-        run: |
-          mv ./SignOutput/rustdesk.exe "./SignOutput/${{ env.FINAL_FILENAME }}.exe" || echo " rustdesk.exe not found!"
-      
-      - name: Rename rustdesk.msi (optional)
+          mv ./SignOutput/rustdesk.exe "./SignOutput/${{ inputs.filename }}.exe" || echo "rustdesk"
+
+      - name: rename rustdesk.msi to filename.msi
         continue-on-error: true
         run: |
-          mv ./SignOutput/rustdesk.msi "./SignOutput/${{ env.FINAL_FILENAME }}.msi" || echo " rustdesk.msi not found – skipping"
-      
-      - name: Send to GDPro Server
+          mv ./SignOutput/rustdesk.msi "./SignOutput/${{ inputs.filename }}.msi" || echo "rustdesk"
+
+
+
+      - name: send file to gdpro server
         if: ${{ fromJson(inputs.extras).gdpro == 'true' }}
         shell: bash
         run: |
-          # Upload .exe
-          curl -i -X POST -H "Content-Type: multipart/form-data" \
-               -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" \
-               -F "file=@./SignOutput/${{ env.FINAL_FILENAME }}.exe" \
-               -F "uuid=${{ inputs.uuid }}" \
-               ${{ secrets.GENURL }}/save_custom_client || echo "⚠️ Failed to upload .exe to GDPro"
-      
-          # Upload .msi (optional)
-          curl -i -X POST -H "Content-Type: multipart/form-data" \
-               -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" \
-               -F "file=@./SignOutput/${{ env.FINAL_FILENAME }}.msi" \
-               -F "uuid=${{ inputs.uuid }}" \
-               ${{ secrets.GENURL }}/save_custom_client || echo "ℹ️ Skipped or failed .msi upload to GDPro"
-      
-      - name: Create GitHub Release
-        if: success()
-        uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ env.FINAL_FILENAME }}
-          name: ${{ env.FINAL_FILENAME }}
-          body: |
-            > Automatically generated custom client.
-          prerelease: true
-          files: |
-            ./SignOutput/${{ env.FINAL_FILENAME }}.exe
-            ./SignOutput/${{ env.FINAL_FILENAME }}.msi
-            
-      - name: Report Status Success
+          curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{ inputs.filename }}.exe" -F "uuid=${{ inputs.uuid }}" ${{ secrets.GENURL }}/save_custom_client
+          curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{ inputs.filename }}.msi" -F "uuid=${{ inputs.uuid }}" ${{ secrets.GENURL }}/save_custom_client || true
+
+      - name: send file to api server
+        if: ${{ fromJson(inputs.extras).gdpro == 'false' }}
+        shell: bash
+        run: |
+          curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{ inputs.filename }}.exe" ${{ inputs.apiServer }}/api/save_custom_client
+          curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{ inputs.filename }}.msi" ${{ inputs.apiServer }}/api/save_custom_client || true
+       - name: Create GitHub Release and Upload Assets
+          if: success()
+          uses: softprops/action-gh-release@v2
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            tag_name: custom/${{ inputs.uuid }}
+            name: "${{ inputs.appname }} - Custom Build"
+            body: |
+              Generated on: ${{ fromJson('{"date": "' + format('%Y-%m-%d %H:%M UTC', github.event.created_at || '') + '"}') }}
+              App Name: `${{ inputs.appname }}`
+              Filename: `${{ inputs.filename }}`
+              Rendezvous Server: `${{ inputs.server }}`
+              API Server: `${{ inputs.apiServer }}`
+              UUID: `${{ inputs.uuid }}`
+            prerelease: true
+            files: |
+              ./SignOutput/${{ inputs.filename }}.exe
+              ./SignOutput/${{ inputs.filename }}.msi
+      - name: Report Status
         uses: fjogeleit/http-request-action@v1
         with:
           url: ${{ env.STATUS_URL }}
