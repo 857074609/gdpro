@@ -607,8 +607,8 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true' && (success() || failure())
         shell: powershell
         env:
-          PFX_BASE64: "${{ secrets.CODE_SIGN_PFX_BASE64 }}"
-          PFX_PASSWORD: "${{ secrets.CODE_SIGN_PASS_PASSWORD }}"
+          PFX_BASE64: ${{ secrets.CODE_SIGN_PFX_BASE64 }}
+          PFX_PASSWORD: ${{ secrets.CODE_SIGN_PASS_PASSWORD }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:PFX_BASE64)) {
             Write-Host "Skipping signing: CODE_SIGN_PFX_BASE64 secret is not set."
