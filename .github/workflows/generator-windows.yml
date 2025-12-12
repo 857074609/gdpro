@@ -668,50 +668,63 @@ jobs:
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "85% complete"}'
 
-
-      - name: rename rustdesk.exe to filename.exe
+      - name: Extract conn-type
+        id: conn
+        shell: pwsh
         run: |
-          mv ./SignOutput/rustdesk.exe "./SignOutput/${{ inputs.filename }}.exe" || echo "rustdesk"
+          $c = "${{ inputs.custom }}"
+          $t = "default"
+          if ($c -ne "") {
+            try {
+              $t = ($c | ConvertFrom-Json).'conn-type'
+              if (-not $t) { $t = "default" }
+            } catch { $t = "default" }
+          }
+          $t = $t -replace '[^a-zA-Z0-9_.-]', '_'
+          echo "conn=$t" >> $env:GITHUB_OUTPUT
+      
+      - name: Gen random tag
+        id: tag
+        shell: pwsh
+        run: |
+          $chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+          $r = -join (1..6 | % { $chars[(Get-Random -Maximum $chars.Length)] })
+          echo "tag=$r" >> $env:GITHUB_OUTPUT
+          
+      - name: Set build filename
+          run: |
+            NAME="${{ inputs.filename }}-${{ steps.conn.outputs.conn }}-${{ steps.tag.outputs.tag }}"
+            echo "BUILD_FILENAME=$NAME" >> "$GITHUB_ENV"
 
-      - name: rename rustdesk.msi to filename.msi
+      - name: rename EXE
+        run: |
+          mv ./SignOutput/rustdesk.exe "./SignOutput/$BUILD_FILENAME.exe" || echo "rustdesk"
+
+      - name: rename MSI
         continue-on-error: true
         run: |
-          mv ./SignOutput/rustdesk.msi "./SignOutput/${{ inputs.filename }}.msi" || echo "rustdesk"
+          mv ./SignOutput/rustdesk.msi "./SignOutput/$BUILD_FILENAME.msi" || echo "rustdesk"
 
-
-
-      - name: send file to gdpro server
+      - name: send file server
         if: ${{ fromJson(inputs.extras).gdpro == 'true' }}
         shell: bash
         run: |
-          curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{ inputs.filename }}.exe" -F "uuid=${{ inputs.uuid }}" ${{ secrets.GENURL }}/save_custom_client
-          curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{ inputs.filename }}.msi" -F "uuid=${{ inputs.uuid }}" ${{ secrets.GENURL }}/save_custom_client || true
+          curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/$BUILD_FILENAME.exe" -F "uuid=${{ inputs.uuid }}" ${{ secrets.GENURL }}/save_custom_client
+          curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/$BUILD_FILENAME.msi" -F "uuid=${{ inputs.uuid }}" ${{ secrets.GENURL }}/save_custom_client || true
 
-      - name: send file to api server
-        if: ${{ fromJson(inputs.extras).gdpro == 'false' }}
-        shell: bash
-        run: |
-          curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{ inputs.filename }}.exe" ${{ inputs.apiServer }}/api/save_custom_client
-          curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{ inputs.filename }}.msi" ${{ inputs.apiServer }}/api/save_custom_client || true
+   
        - name: Create GitHub Release and Upload Assets
           if: success()
           uses: softprops/action-gh-release@v2
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
-            tag_name: custom/${{ inputs.uuid }}
-            name: "${{ inputs.appname }} - Custom Build"
-            body: |
-              Generated on: ${{ fromJson('{"date": "' + format('%Y-%m-%d %H:%M UTC', github.event.created_at || '') + '"}') }}
-              App Name: `${{ inputs.appname }}`
-              Filename: `${{ inputs.filename }}`
-              Rendezvous Server: `${{ inputs.server }}`
-              API Server: `${{ inputs.apiServer }}`
-              UUID: `${{ inputs.uuid }}`
+            tag_name: "$BUILD_FILENAME"
+            name: "$BUILD_FILENAME"
             prerelease: true
             files: |
-              ./SignOutput/${{ inputs.filename }}.exe
-              ./SignOutput/${{ inputs.filename }}.msi
+              ./SignOutput/$BUILD_FILENAME.exe
+              ./SignOutput/$BUILD_FILENAME.msi
       - name: Report Status
         uses: fjogeleit/http-request-action@v1
         with:
