@@ -265,15 +265,8 @@ def check_for_file(request):
     #if file_exists:
     if status == "Success":
         base_name = gh_run.filename or "rustdesk"
-        conn_type = gh_run.direction.lower()
+        direction = gh_run.direction.lower()
         short_uuid = gh_run.uuid.replace('-', '')[:4]
-        ext_map = {
-            'windows': '.exe',
-            'windows-x86': '.exe',
-            'linux': '.deb',
-            'macos': '.dmg',
-            'android': '.apk'
-        }
         return render(request, 'generated.html', {'filename': filename, 'uuid':uuid, 'platform':platform,'short_uuid': short_uuid,'direction': direction})
     else:
         return render(request, 'waiting.html', {'filename':filename, 'uuid':uuid, 'status':status, 'platform':platform})
