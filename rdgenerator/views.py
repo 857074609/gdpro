@@ -264,7 +264,6 @@ def check_for_file(request):
 
     #if file_exists:
     if status == "Success":
-        base_name = gh_run.filename or "rustdesk"
         direction = gh_run.direction.lower()
         short_uuid = gh_run.uuid.replace('-', '')[:4]
         return render(request, 'generated.html', {'filename': filename, 'uuid':uuid, 'platform':platform,'short_uuid': short_uuid,'direction': direction})
