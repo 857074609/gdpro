@@ -5,4 +5,4 @@ class GithubRun(models.Model):
     uuid = models.CharField(verbose_name="uuid", max_length=100)
     status = models.CharField(verbose_name="status", max_length=100)
     filename = models.CharField(max_length=100)
-    direction = models.CharField(max_length=100，default='both') 
+    direction = models.CharField(max_length=100,default='both') 
