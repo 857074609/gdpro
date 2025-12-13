@@ -32,6 +32,7 @@ def generator_view(request):
             apiServer = form.cleaned_data['apiServer']
             urlLink = form.cleaned_data['urlLink']
             downloadLink = form.cleaned_data['downloadLink']
+            direction = form.cleaned_data['direction']
             if not server:
                 server = 'rs-ny.rustdesk.com' #default rustdesk server
             if not key:
@@ -268,17 +269,34 @@ def check_for_file(request):
         return render(request, 'waiting.html', {'filename':filename, 'uuid':uuid, 'status':status, 'platform':platform})
 
 def download(request):
-    filename = request.GET['filename']
-    uuid = request.GET['uuid']
-    #filename = filename+".exe"
-    file_path = os.path.join('exe',uuid,filename)
-    with open(file_path, 'rb') as file:
-        response = HttpResponse(file, headers={
-            'Content-Type': 'application/vnd.microsoft.portable-executable',
-            'Content-Disposition': f'attachment; filename="{filename}"'
-        })
-
-    return response
+uuid_str = request.GET.get('uuid')
+    if not uuid_str:
+        return HttpResponse("Missing UUID", status=400)
+    gh_run = GithubRun.objects.filter(uuid=uuid_str).first()
+    if not gh_run:
+        raise Http404("Build not found")
+    if gh_run.status != "Success":
+        return HttpResponse("Build not ready", status=409)
+    build_dir = Path(_settings.BASE_DIR) / 'exe' / uuid_str
+    if not build_dir.exists():
+        raise Http404("Build files missing")
+    actual_file = None
+    for f in build_dir.iterdir():
+        if f.is_file() and f.suffix.lower() in ['.exe', '.msi', '.dmg', '.deb', '.apk']:
+            actual_file = f
+            break
+    if not actual_file:
+        raise Http404("No executable file found")
+    base_name = gh_run.filename or "rustdesk"
+    conn_type = gh_run.direction.lower()  # incoming / outgoing / both
+    short_uuid = gh_run.uuid.replace('-', '')[:4] 
+    suffix = actual_file.suffix
+    download_filename = f"{base_name}-{conn_type}-{short_uuid}{suffix}"
+    safe_filename = quote(download_filename)
+    with open(actual_file, 'rb') as f:
+        response = HttpResponse(f.read(), content_type='application/octet-stream')
+        response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
+        return response
 
 def get_png(request):
     filename = request.GET['filename']
@@ -293,9 +311,11 @@ def get_png(request):
 
     return response
 
-def create_github_run(myuuid):
+def create_github_run(myuuid, filename=filename, direction=direction):
     new_github_run = GithubRun(
         uuid=myuuid,
+        filename=filename,
+        direction=direction, 
         status="Starting generator...please wait"
     )
     new_github_run.save()
