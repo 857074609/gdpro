@@ -9,7 +9,7 @@ import requests
 import base64
 import json
 import uuid
-from django.conf import settings
+from django.conf import settings as _settings
 from django.db.models import Q
 from .forms import GenerateForm
 from .models import GithubRun
@@ -89,7 +89,7 @@ def generator_view(request):
             if not all(char.isascii() for char in appname):
                 appname = "rustdesk"
             myuuid = str(uuid.uuid4())
-            protocol = settings.PROTOCOL
+            protocol =  _settings.PROTOCOL
             host = request.get_host()
             full_url = f"{protocol}://{host}"
             try:
@@ -192,7 +192,7 @@ def generator_view(request):
 
             #github limits inputs to 10, so lump extras into one with json
             extras = {}
-            extras['genurl'] = settings.GENURL
+            extras['genurl'] = _settings.GENURL
             #extras['runasadmin'] = runasadmin
             extras['urlLink'] = urlLink
             extras['downloadLink'] = downloadLink
@@ -207,19 +207,19 @@ def generator_view(request):
 
             ####from here run the github action, we need user, repo, access token.
             if platform == 'windows':
-                url = 'https://api.github.com/repos/'+settings.GHUSER+'/'+settings.REPONAME+'/actions/workflows/generator-windows.yml/dispatches'
+                url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-windows.yml/dispatches'
             if platform == 'windows-x86':
-                url = 'https://api.github.com/repos/'+settings.GHUSER+'/'+settings.REPONAME+'/actions/workflows/generator-windows-x86.yml/dispatches'
+                url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-windows-x86.yml/dispatches'
             elif platform == 'linux':
-                url = 'https://api.github.com/repos/'+settings.GHUSER+'/'+settings.REPONAME+'/actions/workflows/generator-linux.yml/dispatches'
+                url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-linux.yml/dispatches'
             elif platform == 'android':
-                url = 'https://api.github.com/repos/'+settings.GHUSER+'/'+settings.REPONAME+'/actions/workflows/generator-android.yml/dispatches'
+                url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-android.yml/dispatches'
             elif platform == 'macos':
-                url = 'https://api.github.com/repos/'+settings.GHUSER+'/'+settings.REPONAME+'/actions/workflows/generator-macos.yml/dispatches'
+                url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-macos.yml/dispatches'
             else:
-                url = 'https://api.github.com/repos/'+settings.GHUSER+'/'+settings.REPONAME+'/actions/workflows/generator-windows.yml/dispatches'
+                url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-windows.yml/dispatches'
 
-            #url = 'https://api.github.com/repos/'+settings.GHUSER+'/rustdesk/actions/workflows/test.yml/dispatches'  
+            #url = 'https://api.github.com/repos/'+_settings.GHUSER+'/rustdesk/actions/workflows/test.yml/dispatches'  
             data = {
                 "ref":"master",
                 "inputs":{
@@ -241,7 +241,7 @@ def generator_view(request):
             headers = {
                 'Accept':  'application/vnd.github+json',
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer '+settings.GHBEARER,
+                'Authorization': 'Bearer '+_settings.GHBEARER,
                 'X-GitHub-Api-Version': '2022-11-28'
             }
             create_github_run(myuuid, filename=filename, direction=direction)
@@ -280,7 +280,7 @@ def download(request):
     gh_run = GithubRun.objects.filter(uuid=uuid_str).first()
     if not gh_run or gh_run.status != "Success":
         return HttpResponse("Build not ready", status=409)
-    build_dir = Path(settings.BASE_DIR) / 'exe' / uuid_str
+    build_dir = Path(_settings.BASE_DIR) / 'exe' / uuid_str
     target_file = build_dir / full_filename
     try:
         target_file = target_file.resolve()
@@ -374,7 +374,7 @@ def startgh(request):
     #print(request)
     data_ = json.loads(request.body)
     ####from here run the github action, we need user, repo, access token.
-    url = 'https://api.github.com/repos/'+settings.GHUSER+'/'+settings.REPONAME+'/actions/workflows/generator-'+data_.get('platform')+'.yml/dispatches'  
+    url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-'+data_.get('platform')+'.yml/dispatches'  
     data = {
         "ref":"master",
         "inputs":{
@@ -393,7 +393,7 @@ def startgh(request):
     headers = {
         'Accept':  'application/vnd.github+json',
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer '+settings.GHBEARER,
+        'Authorization': 'Bearer '+_settings.GHBEARER,
         'X-GitHub-Api-Version': '2022-11-28'
     }
     response = requests.post(url, json=data, headers=headers)
